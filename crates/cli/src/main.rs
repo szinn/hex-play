@@ -1,6 +1,10 @@
-use hex_play::add;
+use anyhow::{Context, Result};
+use hex_play::config::Config;
 
-fn main() {
-    println!("Hello from hex-play!");
-    println!("2 + 2 = {}", add(2, 2));
+#[tokio::main]
+async fn main() -> Result<()> {
+    let config = Config::load().context("Cannot load configuration")?;
+    println!("{:?}", config);
+
+    Ok(())
 }
