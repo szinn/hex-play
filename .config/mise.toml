@@ -1,0 +1,8 @@
+[settings]
+pipx_uvx = true
+
+[tools]
+"aqua:astral-sh/uv" = "latest"
+"git-cliff" = "latest"
+"node" = "24"
+"prettier" = "latest"

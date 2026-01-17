@@ -1,0 +1,23 @@
+
+[package]
+name = "hex-play-cli"
+description = "Command-line app for experimentation"
+default-run = "hex-play"
+autotests = false
+
+version = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+[lib]
+name = "hex_play"
+path = "src/lib.rs"
+
+[[bin]]
+name = "hex-play"
+path = "src/main.rs"
+
+[dev-dependencies]
+insta = { workspace = true }
