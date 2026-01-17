@@ -13,8 +13,40 @@ readme = "README.md"
 repository = "https://github.com/szinn/hex-play"
 license = "MIT"
 
+default-run = "hex-play"
+
 [workspace.dependencies]
-insta = { version = "1.46.1", features = ["filters"] }
+anyhow = "1.0.100"
+config = "0.15.19"
+log = "0.4.29"
+serde_json = "1.0.149"
+thiserror = "2.0.17"
+tracing-log = "0.2.0"
+
+[workspace.dependencies.clap]
+version = "4.5.54"
+features = ["cargo", "derive", "env"]
+
+[workspace.dependencies.insta]
+version = "1.46.1"
+features = ["filters"]
+
+[workspace.dependencies.serde]
+version = "1.0.228"
+features = ["derive"]
+
+[workspace.dependencies.tokio]
+version = "1.49.0"
+default-features = false
+features = ["full"]
+
+[workspace.dependencies.tracing]
+version = "0.1.44"
+features = ["log"]
+
+[workspace.dependencies.tracing-subscriber]
+version = "0.3.22"
+features = ["std", "fmt", "registry", "env-filter", "json"]
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
