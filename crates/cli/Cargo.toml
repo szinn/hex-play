@@ -17,9 +17,15 @@ path = "src/lib.rs"
 
 [[bin]]
 name = "hex-play"
-path = "src/main.rs"
+path = "src/bin/hex-play.rs"
+
+[[bin]]
+name = "migrator"
+path = "src/bin/migrator.rs"
 
 [dependencies]
+hex-play-database.workspace = true
+
 anyhow.workspace = true
 clap.workspace = true
 config.workspace = true

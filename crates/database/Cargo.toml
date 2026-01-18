@@ -1,0 +1,22 @@
+
+[package]
+name = "hex-play-database"
+description = "Database for experimentation"
+autotests = false
+
+version = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+build = "build.rs"
+
+[dependencies]
+rust-embed.workspace = true
+sea-orm.workspace = true
+sea-orm-migration.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true

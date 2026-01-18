@@ -13,9 +13,9 @@ readme = "README.md"
 repository = "https://github.com/szinn/hex-play"
 license = "MIT"
 
-default-run = "hex-play"
-
 [workspace.dependencies]
+hex-play-database = { path = "crates/database" }
+
 anyhow = "1.0.100"
 config = "0.15.19"
 log = "0.4.29"
@@ -30,6 +30,33 @@ features = ["cargo", "derive", "env"]
 [workspace.dependencies.insta]
 version = "1.46.1"
 features = ["filters"]
+
+[workspace.dependencies.rust-embed]
+version = "8.11.0"
+features = ["debug-embed"]
+
+[workspace.dependencies.sea-orm]
+version = "1.1.19"
+features = [
+    "debug-print",
+    "mock",
+    "postgres-array",
+    "runtime-tokio-rustls",
+    "sqlx-postgres",
+    "with-chrono",
+    "with-json",
+    "with-uuid",
+]
+
+[workspace.dependencies.sea-orm-migration]
+version = "1.1.19"
+features = [
+    "sqlx-postgres",
+    "runtime-tokio-rustls",
+    "with-chrono",
+    "with-json",
+    "with-uuid",
+]
 
 [workspace.dependencies.serde]
 version = "1.0.228"
