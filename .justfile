@@ -21,7 +21,7 @@ fmt:
 
 [doc('Update CHANGELOG.md')]
 changelog:
-  git-cliff --config .config/cliff.toml > CHANGELOG.md
+  RUST_LOG= git-cliff --config .config/cliff.toml > CHANGELOG.md
   just fmt
 
 [doc('Run Clippy on codebase for linting')]
@@ -39,3 +39,47 @@ insta:
 [doc('Clean project workspace')]
 clean:
   cargo clean
+
+[doc('Database Admin')]
+database:
+  PGUSER=$PGADMINUSER PGPASSWORD=$PGADMINPASSWORD PGDATABASE= psql-18
+
+[doc('Create the database')]
+create-database:
+  #!/usr/bin/env bash
+  set -euo pipefail
+
+  SQL="""
+    DROP DATABASE IF EXISTS "$PGDATABASE";
+    DROP ROLE IF EXISTS "$PGUSER";
+
+    CREATE ROLE "$PGUSER" WITH
+      LOGIN
+      NOSUPERUSER
+      INHERIT
+      NOCREATEDB
+      NOCREATEROLE
+      NOREPLICATION
+      PASSWORD '$PGPASSWORD';
+
+    CREATE DATABASE "$PGDATABASE"
+      WITH
+      OWNER = "$PGUSER"
+      ENCODING = 'UTF8'
+      LC_COLLATE = 'C'
+      LC_CTYPE = 'C'
+      TABLESPACE = pg_default
+      CONNECTION LIMIT = -1
+      IS_TEMPLATE = False;
+
+    GRANT TEMPORARY, CONNECT ON DATABASE "$PGDATABASE" TO PUBLIC;
+
+    GRANT ALL ON DATABASE "$PGDATABASE" TO "$PGUSER";
+  """
+  echo $SQL | PGUSER=$PGADMINUSER PGPASSWORD=$PGADMINPASSWORD PGDATABASE= psql-18 postgres
+
+[doc('Create entity classes')]
+entities:
+  DATABASE_URL=$HPLAY__DATABASE__DATABASE_URL cargo run --bin migrator -- up
+  DATABASE_URL=$HPLAY__DATABASE__DATABASE_URL sea-orm-cli generate entity -o crates/database/src/entities --with-serde both
+

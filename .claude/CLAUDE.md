@@ -11,13 +11,15 @@ just install-tools
 
 ## Commands
 
-Install Tools: `just install-tools`
-Format Code: `just fmt`
-Run Clippy: `just clippy`
-Run Tests: `just test`
-Run Insta Tests: `just insta`
-Clean Workspace: `just clean`
-Create Changelog: `just changelog`
+Install tools: `just install-tools`
+Format code: `just fmt`
+Run clippy: `just clippy`
+Run tests: `just test`
+Run insta Tests: `just insta`
+Clean workspace: `just clean`
+Create changelog: `just changelog`
+Create database: `just create-database`
+Extract database entities: `just entities`
 
 ## Directory Structure
 
