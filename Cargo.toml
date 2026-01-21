@@ -17,6 +17,7 @@ license = "MIT"
 hex-play-database = { path = "crates/database" }
 
 anyhow = "1.0.100"
+async-trait = "0.1.89"
 config = "0.15.19"
 log = "0.4.29"
 serde_json = "1.0.149"
@@ -36,7 +37,7 @@ version = "8.11.0"
 features = ["debug-embed"]
 
 [workspace.dependencies.sea-orm]
-version = "1.1.19"
+version = "2.0.0-rc.28"
 features = [
     "debug-print",
     "mock",
@@ -49,7 +50,7 @@ features = [
 ]
 
 [workspace.dependencies.sea-orm-migration]
-version = "1.1.19"
+version = "2.0.0-rc.28"
 features = [
     "sqlx-postgres",
     "runtime-tokio-rustls",

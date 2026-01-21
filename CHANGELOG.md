@@ -12,3 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Config framework
 - Command arguments framework
 - Database framework
+
+### Miscellaneous Tasks
+
+- Update to sea-orm 2.0.0-rc
