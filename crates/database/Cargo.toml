@@ -13,6 +13,7 @@ repository = { workspace = true }
 build = "build.rs"
 
 [dependencies]
+async-trait.workspace = true
 rust-embed.workspace = true
 sea-orm.workspace = true
 sea-orm-migration.workspace = true

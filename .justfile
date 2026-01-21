@@ -81,5 +81,4 @@ create-database:
 [doc('Create entity classes')]
 entities:
   DATABASE_URL=$HPLAY__DATABASE__DATABASE_URL cargo run --bin migrator -- up
-  DATABASE_URL=$HPLAY__DATABASE__DATABASE_URL sea-orm-cli generate entity -o crates/database/src/entities --with-serde both
-
+  DATABASE_URL=$HPLAY__DATABASE__DATABASE_URL sea-orm-cli generate entity -o crates/database/src/entities --with-serde both --entity-format dense
