@@ -24,6 +24,10 @@ changelog:
   RUST_LOG= git-cliff --config .config/cliff.toml > CHANGELOG.md
   just fmt
 
+[doc('Build all applications')]
+build:
+  cargo build --bin hex-play --bin migrator
+
 [doc('Run Clippy on codebase for linting')]
 clippy:
   cargo +nightly clippy --workspace --all-targets

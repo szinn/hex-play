@@ -1,16 +1,25 @@
+use std::sync::Arc;
+
 use sea_orm::ConnectOptions;
 use sea_orm::Database;
-use sea_orm::DatabaseConnection;
 
-use crate::error::Error;
-use crate::error::handle_dberr;
-use crate::migration::apply_migrations;
+use crate::Error;
+use crate::handle_dberr;
 
-pub mod entities;
 pub mod error;
 pub mod migration;
 
-pub async fn create_database_connection(database_url: &str) -> Result<DatabaseConnection, Error> {
+pub use error::*;
+pub use migration::*;
+
+mod entities;
+mod repository;
+mod transaction;
+
+use repository::*;
+use transaction::*;
+
+pub async fn create_repository(database_url: &str) -> Result<Arc<dyn Repository>, Error> {
     tracing::debug!("Connecting to database...");
     let mut opt = ConnectOptions::new(database_url);
     opt.max_connections(100)
@@ -21,5 +30,5 @@ pub async fn create_database_connection(database_url: &str) -> Result<DatabaseCo
     let database = Database::connect(opt).await.map_err(handle_dberr)?;
     apply_migrations(&database).await?;
 
-    Ok(database)
+    Ok(Arc::new(RepositoryImpl::new(database)))
 }
