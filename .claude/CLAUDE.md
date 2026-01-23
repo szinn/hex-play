@@ -12,6 +12,7 @@ just install-tools
 ## Commands
 
 Install tools: `just install-tools`
+Build: just build
 Format code: `just fmt`
 Run clippy: `just clippy`
 Run tests: `just test`

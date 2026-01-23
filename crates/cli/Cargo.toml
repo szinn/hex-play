@@ -1,4 +1,3 @@
-
 [package]
 name = "hex-play-cli"
 description = "Command-line app for experimentation"
