@@ -1,22 +1,19 @@
+use hex_play_core::RepositoryError;
 use sea_orm::DbErr;
 
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("{0}")]
-    Message(String),
-
-    #[error(transparent)]
-    Any(#[from] Box<dyn std::error::Error + Send + Sync>),
-
-    #[error("Can't read database configuration file")]
-    CantReadConfiguration,
-
-    #[error(transparent)]
-    SeaOrm(#[from] DbErr),
-}
-
-pub fn handle_dberr(error: DbErr) -> Error {
-    tracing::error!("Got DbErr {:?}", error);
-
-    Error::SeaOrm(error)
+pub fn handle_dberr(error: DbErr) -> RepositoryError {
+    match error.sql_err() {
+        Some(error) => match error {
+            sea_orm::SqlErr::UniqueConstraintViolation(msg) => RepositoryError::Constraint(msg),
+            _ => {
+                tracing::error!("Got sql_err {:?}", error);
+                dbg!(&error);
+                RepositoryError::Message(error.to_string())
+            }
+        },
+        _ => {
+            tracing::error!("Got DbErr {:?}", error);
+            RepositoryError::Message(error.to_string())
+        }
+    }
 }

@@ -1,31 +1,40 @@
+use std::any::Any;
+
+use hex_play_core::{Error, Transaction};
 use sea_orm::DatabaseTransaction;
 
-use crate::error::Error;
-
-#[async_trait::async_trait]
-pub trait Transaction {
-    async fn commit(self: Box<Self>) -> Result<(), Error>;
-    async fn rollback(self: Box<Self>) -> Result<(), Error>;
-}
+use crate::error::handle_dberr;
 
 pub(crate) struct TransactionImpl {
-    transaction: DatabaseTransaction,
+    pub(crate) transaction: DatabaseTransaction,
 }
 
-impl TransactionImpl {
+impl<'a> TransactionImpl {
     pub(crate) fn new(transaction: DatabaseTransaction) -> Self {
         Self { transaction }
+    }
+
+    pub(crate) fn get_db_transaction(tx: &'a dyn Transaction) -> Result<&'a DatabaseTransaction, Error> {
+        match tx.as_any().downcast_ref::<TransactionImpl>() {
+            Some(transaction) => Ok(&transaction.transaction),
+            _ => Err(Error::Message("Invalid transaction type".into())),
+        }
     }
 }
 
 #[async_trait::async_trait]
 impl Transaction for TransactionImpl {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
     async fn commit(self: Box<Self>) -> Result<(), Error> {
-        self.transaction.commit().await?;
+        self.transaction.commit().await.map_err(handle_dberr)?;
         Ok(())
     }
+
     async fn rollback(self: Box<Self>) -> Result<(), Error> {
-        self.transaction.rollback().await?;
+        self.transaction.rollback().await.map_err(handle_dberr)?;
         Ok(())
     }
 }

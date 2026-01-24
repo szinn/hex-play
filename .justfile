@@ -82,6 +82,11 @@ create-database:
   """
   echo $SQL | PGUSER=$PGADMINUSER PGPASSWORD=$PGADMINPASSWORD PGDATABASE= psql-18 postgres
 
+[doc('Redo all migrations')]
+migrations:
+  DATABASE_URL=$HPLAY__DATABASE__DATABASE_URL cargo run --bin migrator -- down
+  DATABASE_URL=$HPLAY__DATABASE__DATABASE_URL cargo run --bin migrator -- up
+
 [doc('Create entity classes')]
 entities:
   DATABASE_URL=$HPLAY__DATABASE__DATABASE_URL cargo run --bin migrator -- up

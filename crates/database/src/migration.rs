@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
+use hex_play_core::Error;
 use rust_embed::EmbeddedFile;
 use sea_orm::DatabaseConnection;
 use sea_orm::TransactionTrait;
 use sea_orm_migration::prelude::*;
 use serde::Deserialize;
 
-use crate::error::Error;
 use crate::error::handle_dberr;
 
 struct MigrationInfo {
@@ -65,8 +65,9 @@ struct DatabaseConfiguration {
 pub async fn reset_tables(database: &DatabaseConnection) -> Result<(), Error> {
     crate::migration::apply_migrations(database).await?;
 
-    let configuration = Asset::get("configuration.json").ok_or_else(|| Error::CantReadConfiguration)?;
-    let configuration: DatabaseConfiguration = serde_json::from_str(&contents(configuration)).map_err(|_| Error::CantReadConfiguration)?;
+    let configuration = Asset::get("configuration.json").ok_or_else(|| Error::Message("Can't read configuration.json".into()))?;
+    let configuration: DatabaseConfiguration =
+        serde_json::from_str(&contents(configuration)).map_err(|_| Error::Message("Can't load configuration.json".into()))?;
 
     let tx = TransactionTrait::begin(database).await.map_err(handle_dberr)?;
     for table in configuration.tables {

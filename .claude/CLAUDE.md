@@ -20,6 +20,7 @@ Run insta Tests: `just insta`
 Clean workspace: `just clean`
 Create changelog: `just changelog`
 Create database: `just create-database`
+Redo all migrations: just migrations
 Extract database entities: `just entities`
 
 ## Directory Structure
