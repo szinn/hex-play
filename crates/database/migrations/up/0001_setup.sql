@@ -43,7 +43,7 @@ $$ language plpgsql;
 
 -- Finally, this is a text collation that sorts text case-insensitively, useful for `UNIQUE` indexes
 -- over things like usernames and emails, without needing to remember to do case-conversion.
-create collation case_insensitive (
+CREATE collation case_insensitive (
     provider = icu,
     locale = 'und-u-ks-level2',
     deterministic = false

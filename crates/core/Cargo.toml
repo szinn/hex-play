@@ -10,8 +10,8 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-hex-play-database.workspace = true
-
 async-trait.workspace = true
+chrono.workspace = true
+derive_builder.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
