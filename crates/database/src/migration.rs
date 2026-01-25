@@ -2,8 +2,7 @@ use std::collections::HashMap;
 
 use hex_play_core::Error;
 use rust_embed::EmbeddedFile;
-use sea_orm::DatabaseConnection;
-use sea_orm::TransactionTrait;
+use sea_orm::{DatabaseConnection, TransactionTrait};
 use sea_orm_migration::prelude::*;
 use serde::Deserialize;
 

@@ -9,9 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- _(core)_ Add transaction helper functions with auto commit/rollback
 - Config framework
 - Command arguments framework
 - Database framework
+- Beginning of repository and transactions
+- Beginning of User service
 
 ### Miscellaneous Tasks
 

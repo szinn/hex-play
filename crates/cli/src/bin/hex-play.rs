@@ -1,10 +1,9 @@
-use anyhow::Context;
-use anyhow::Result;
-use hex_play::commands::CommandLine;
-use hex_play::commands::Commands;
-use hex_play::commands::run_server_command;
-use hex_play::config::Config;
-use hex_play::logging::init_logging;
+use anyhow::{Context, Result};
+use hex_play::{
+    commands::{CommandLine, Commands, run_server_command},
+    config::Config,
+    logging::init_logging,
+};
 
 #[tokio::main]
 async fn main() -> Result<()> {

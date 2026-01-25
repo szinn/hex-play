@@ -1,12 +1,7 @@
-use hex_play_core::Error;
-use hex_play_core::Repository;
-use hex_play_core::Transaction;
-use sea_orm::AccessMode;
-use sea_orm::DatabaseConnection;
-use sea_orm::TransactionTrait;
+use hex_play_core::{Error, Repository, Transaction};
+use sea_orm::{AccessMode, DatabaseConnection, TransactionTrait};
 
-use crate::TransactionImpl;
-use crate::error::handle_dberr;
+use crate::{TransactionImpl, error::handle_dberr};
 
 #[derive(Clone)]
 pub(crate) struct RepositoryImpl {
