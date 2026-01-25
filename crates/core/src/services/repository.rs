@@ -1,4 +1,4 @@
-use std::any::Any;
+use std::{any::Any, future::Future, pin::Pin, sync::Arc};
 
 use crate::{Error, User};
 
@@ -7,6 +7,53 @@ pub trait Repository: Send + Sync {
     async fn begin(&self) -> Result<Box<dyn Transaction>, Error>;
     async fn begin_read_only(&self) -> Result<Box<dyn Transaction>, Error>;
     async fn close(&self) -> Result<(), Error>;
+}
+
+/// Execute a closure within a transaction, automatically committing on success
+/// or rolling back on error.
+///
+/// # Example
+/// ```ignore
+/// let result = transaction(&*repository, |tx| Box::pin(async move {
+///     // do stuff with tx
+///     Ok(result)
+/// })).await?;
+/// ```
+pub async fn transaction<F, T>(repository: &dyn Repository, callback: F) -> Result<T, Error>
+where
+    F: for<'c> FnOnce(&'c dyn Transaction) -> Pin<Box<dyn Future<Output = Result<T, Error>> + Send + 'c>> + Send,
+    T: Send,
+{
+    let tx = repository.begin().await?;
+    match callback(&*tx).await {
+        Ok(result) => {
+            tx.commit().await?;
+            Ok(result)
+        }
+        Err(e) => {
+            // Best effort rollback - if it fails, we still return the original error
+            let _ = tx.rollback().await;
+            Err(e)
+        }
+    }
+}
+
+/// Execute a closure within a read ony transaction.
+///
+/// # Example
+/// ```ignore
+/// let result = read_only_transaction(&*repository, |tx| Box::pin(async move {
+///     // do stuff with tx
+///     Ok(result)
+/// })).await?;
+/// ```
+pub async fn read_only_transaction<F, T>(repository: &dyn Repository, callback: F) -> Result<T, Error>
+where
+    F: for<'c> FnOnce(&'c dyn Transaction) -> Pin<Box<dyn Future<Output = Result<T, Error>> + Send + 'c>> + Send,
+    T: Send,
+{
+    let tx = repository.begin_read_only().await?;
+    callback(&*tx).await
 }
 
 #[async_trait::async_trait]
@@ -23,6 +70,6 @@ pub trait UserService: Send + Sync {
 }
 
 pub struct RepositoryService {
-    pub repository: Box<dyn Repository>,
-    pub user_service: Box<dyn UserService>,
+    pub repository: Arc<dyn Repository>,
+    pub user_service: Arc<dyn UserService>,
 }

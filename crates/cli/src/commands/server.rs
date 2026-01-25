@@ -1,5 +1,5 @@
 use anyhow::Context;
-use hex_play_core::UserBuilder;
+use hex_play_core::{UserBuilder, read_only_transaction, transaction};
 use hex_play_database::create_repository_service;
 
 use crate::config::Config;
@@ -47,6 +47,7 @@ pub async fn run_server_command(config: &Config) -> anyhow::Result<()> {
                 .updated_at(user.updated_at)
                 .build()
                 .unwrap();
+            dbg!(&user);
             user
         } else {
             tracing::info!("Not found");
@@ -57,6 +58,50 @@ pub async fn run_server_command(config: &Config) -> anyhow::Result<()> {
         dbg!(&user);
 
         tx.commit().await?;
+
+        let user_service = repository_service.user_service.clone();
+        let mary = transaction(&*repository_service.repository, |tx| {
+            Box::pin(async move {
+                let user = UserBuilder::default()
+                    .name("Mary Wombat".into())
+                    .email("mary@wombat.com".into())
+                    .build()
+                    .unwrap();
+
+                let existing_user = user_service.find_by_email(tx, &user.email).await?;
+                let mary = if let Some(mary) = existing_user {
+                    tracing::info!("Mary already exists in the database");
+                    mary
+                } else {
+                    user_service.add_user(tx, user).await?
+                };
+                Ok(mary)
+            })
+        })
+        .await?;
+        dbg!(&mary);
+
+        let user_service = repository_service.user_service.clone();
+        let bill = read_only_transaction(&*repository_service.repository, |tx| {
+            Box::pin(async move {
+                let user = UserBuilder::default()
+                    .name("Bill Wombat".into())
+                    .email("bill@wombat.com".into())
+                    .build()
+                    .unwrap();
+
+                let existing_user = user_service.find_by_email(tx, &user.email).await?;
+                let bill = if let Some(bill) = existing_user {
+                    tracing::info!("Bill already exists in the database");
+                    bill
+                } else {
+                    user
+                };
+                Ok(bill)
+            })
+        })
+        .await?;
+        dbg!(&bill);
 
         _ = repository_service.repository.close().await;
 

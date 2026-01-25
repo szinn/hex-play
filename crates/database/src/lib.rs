@@ -1,12 +1,9 @@
 use std::sync::Arc;
 
-use hex_play_core::Error;
-use hex_play_core::RepositoryService;
-use sea_orm::ConnectOptions;
-use sea_orm::Database;
+use hex_play_core::{Error, RepositoryService};
+use sea_orm::{ConnectOptions, Database};
 
-use crate::adapters::user::UserServiceAdapter;
-use crate::handle_dberr;
+use crate::{adapters::user::UserServiceAdapter, handle_dberr};
 
 pub mod error;
 pub mod migration;
@@ -37,8 +34,8 @@ pub async fn create_repository_service(database_url: &str) -> Result<Arc<Reposit
     let user_service = UserServiceAdapter::new();
 
     let repository_service = RepositoryService {
-        repository: Box::new(repository),
-        user_service: Box::new(user_service),
+        repository: Arc::new(repository),
+        user_service: Arc::new(user_service),
     };
 
     Ok(Arc::new(repository_service))

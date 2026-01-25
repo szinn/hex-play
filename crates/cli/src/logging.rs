@@ -1,13 +1,9 @@
-use anyhow::Context;
-use anyhow::Result;
+use anyhow::{Context, Result};
 
 pub fn init_logging() -> Result<()> {
     use tracing::subscriber::set_global_default;
     use tracing_log::LogTracer;
-    use tracing_subscriber::EnvFilter;
-    use tracing_subscriber::Registry;
-    use tracing_subscriber::fmt::format::FmtSpan;
-    use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
+    use tracing_subscriber::{EnvFilter, Registry, fmt::format::FmtSpan, prelude::__tracing_subscriber_SubscriberExt};
 
     LogTracer::init_with_filter(log::LevelFilter::Off).context("Unable to setup log tracer")?;
 
