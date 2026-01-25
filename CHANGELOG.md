@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Database framework
 - Beginning of repository and transactions
 - Beginning of User service
+- Added update for User service
+- CoreServices framework
 
 ### Miscellaneous Tasks
 

@@ -9,6 +9,25 @@ pub trait Repository: Send + Sync {
     async fn close(&self) -> Result<(), Error>;
 }
 
+#[async_trait::async_trait]
+pub trait Transaction: Any + Send + Sync {
+    fn as_any(&self) -> &dyn Any;
+    async fn commit(self: Box<Self>) -> Result<(), Error>;
+    async fn rollback(self: Box<Self>) -> Result<(), Error>;
+}
+
+#[async_trait::async_trait]
+pub trait UserService: Send + Sync {
+    async fn add_user(&self, transaction: &dyn Transaction, user: User) -> Result<User, Error>;
+    async fn find_by_email(&self, transaction: &dyn Transaction, email: &str) -> Result<Option<User>, Error>;
+    async fn update_user(&self, transaction: &dyn Transaction, user: User) -> Result<User, Error>;
+}
+
+pub struct RepositoryService {
+    pub repository: Arc<dyn Repository>,
+    pub user_service: Arc<dyn UserService>,
+}
+
 /// Execute a closure within a transaction, automatically committing on success
 /// or rolling back on error.
 ///
@@ -19,6 +38,7 @@ pub trait Repository: Send + Sync {
 ///     Ok(result)
 /// })).await?;
 /// ```
+#[tracing::instrument(level = "trace", skip(repository, callback))]
 pub async fn transaction<F, T>(repository: &dyn Repository, callback: F) -> Result<T, Error>
 where
     F: for<'c> FnOnce(&'c dyn Transaction) -> Pin<Box<dyn Future<Output = Result<T, Error>> + Send + 'c>> + Send,
@@ -38,7 +58,7 @@ where
     }
 }
 
-/// Execute a closure within a read ony transaction.
+/// Execute a closure within a read-only transaction.
 ///
 /// # Example
 /// ```ignore
@@ -47,6 +67,7 @@ where
 ///     Ok(result)
 /// })).await?;
 /// ```
+#[tracing::instrument(level = "trace", skip(repository, callback))]
 pub async fn read_only_transaction<F, T>(repository: &dyn Repository, callback: F) -> Result<T, Error>
 where
     F: for<'c> FnOnce(&'c dyn Transaction) -> Pin<Box<dyn Future<Output = Result<T, Error>> + Send + 'c>> + Send,
@@ -54,23 +75,4 @@ where
 {
     let tx = repository.begin_read_only().await?;
     callback(&*tx).await
-}
-
-#[async_trait::async_trait]
-pub trait Transaction: Any + Send + Sync {
-    fn as_any(&self) -> &dyn Any;
-    async fn commit(self: Box<Self>) -> Result<(), Error>;
-    async fn rollback(self: Box<Self>) -> Result<(), Error>;
-}
-
-#[async_trait::async_trait]
-pub trait UserService: Send + Sync {
-    async fn add_user(&self, transaction: &dyn Transaction, user: User) -> Result<User, Error>;
-    async fn find_by_email(&self, transaction: &dyn Transaction, email: &str) -> Result<Option<User>, Error>;
-    async fn update_user(&self, transaction: &dyn Transaction, user: User) -> Result<User, Error>;
-}
-
-pub struct RepositoryService {
-    pub repository: Arc<dyn Repository>,
-    pub user_service: Arc<dyn UserService>,
 }
