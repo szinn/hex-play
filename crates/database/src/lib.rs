@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use hex_play_core::{Error, RepositoryService};
-use sea_orm::{ConnectOptions, Database};
+use sea_orm::DatabaseConnection;
 
-use crate::{adapters::user::UserServiceAdapter, handle_dberr};
+use crate::adapters::user::UserServiceAdapter;
 
 pub mod error;
 pub mod migration;
@@ -19,15 +19,9 @@ mod transaction;
 use repository::*;
 use transaction::*;
 
-pub async fn create_repository_service(database_url: &str) -> Result<Arc<RepositoryService>, Error> {
+#[tracing::instrument(level = "trace", skip(database))]
+pub async fn create_repository_service(database: DatabaseConnection) -> Result<Arc<RepositoryService>, Error> {
     tracing::debug!("Connecting to database...");
-    let mut opt = ConnectOptions::new(database_url);
-    opt.max_connections(100)
-        .min_connections(5)
-        .sqlx_logging(true)
-        .sqlx_logging_level(tracing::log::LevelFilter::Info);
-
-    let database = Database::connect(opt).await.map_err(handle_dberr)?;
     apply_migrations(&database).await?;
 
     let repository = RepositoryImpl::new(database);

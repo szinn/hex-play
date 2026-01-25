@@ -1,6 +1,7 @@
 use anyhow::Context;
-use hex_play_core::{UserBuilder, read_only_transaction, transaction};
+use hex_play_core::{UserBuilder, create_services, read_only_transaction, transaction};
 use hex_play_database::create_repository_service;
+use sea_orm::{ConnectOptions, Database};
 
 use crate::config::Config;
 
@@ -11,9 +12,17 @@ pub async fn run_server_command(config: &Config) -> anyhow::Result<()> {
 
     let _server = {
         let _span_ = tracing::span!(tracing::Level::TRACE, "CreateServer").entered();
-        let repository_service = create_repository_service(&config.database.database_url)
-            .await
-            .context("Couldn't create database connection")?;
+        let mut opt = ConnectOptions::new(&config.database.database_url);
+        opt.max_connections(100)
+            .min_connections(5)
+            .sqlx_logging(true)
+            .sqlx_logging_level(tracing::log::LevelFilter::Info);
+
+        let database = Database::connect(opt).await.context("Couldn't create database connection")?;
+        let repository_service = create_repository_service(database).await.context("Couldn't create database connection")?;
+
+        let services = create_services(repository_service.clone()).context("Couldn't create core services")?;
+
         // let services = create_services(config, database).await.context("Couldn't
         // start services")?; let server = create_server(config,
         // services).await.context("Couldn't create TeslaSpy server")?;
@@ -47,8 +56,6 @@ pub async fn run_server_command(config: &Config) -> anyhow::Result<()> {
             tracing::info!("Not found");
             repository_service.user_service.add_user(&*tx, user).await?
         };
-
-        // let user = repository_service.user_service.add_user(&*tx, user).await?;
         dbg!(&user);
 
         tx.commit().await?;

@@ -25,6 +25,7 @@ derive_builder = "0.20.2"
 log = "0.4.29"
 serde_json = "1.0.149"
 thiserror = "2.0.18"
+tokio-graceful-shutdown = "0.19.2"
 tracing-log = "0.2.0"
 
 [workspace.dependencies.clap]
