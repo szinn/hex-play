@@ -38,15 +38,9 @@ pub async fn run_server_command(config: &Config) -> anyhow::Result<()> {
         let existing_user = repository_service.user_service.find_by_email(&*tx, &user.email).await?;
         let user = if let Some(user) = existing_user {
             tracing::info!("Found user");
-            let user = UserBuilder::default()
-                .id(user.id)
-                .version(user.version)
-                .name(user.name)
-                .email("also_fred@wombat.com".into())
-                .created_at(user.created_at)
-                .updated_at(user.updated_at)
-                .build()
-                .unwrap();
+            let mut user = user;
+            user.email = "also_fred@wombat.com".into();
+            let user = repository_service.user_service.update_user(&*tx, user).await?;
             dbg!(&user);
             user
         } else {
