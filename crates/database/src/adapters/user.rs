@@ -1,6 +1,6 @@
 use chrono::Utc;
-use hex_play_core::{Error, Transaction, User, UserService};
-use sea_orm::{ActiveModelTrait, ActiveValue::Set};
+use hex_play_core::{Error, RepositoryError, Transaction, User, UserService};
+use sea_orm::{ActiveModelTrait, ActiveValue::Set, EntityTrait};
 
 use crate::{
     entities::{prelude, users},
@@ -43,6 +43,30 @@ impl UserService for UserServiceAdapter {
         let model = model.insert(transaction).await.map_err(handle_dberr)?;
 
         Ok(model.into())
+    }
+
+    async fn update_user(&self, transaction: &dyn Transaction, user: User) -> Result<User, Error> {
+        let transaction = TransactionImpl::get_db_transaction(transaction)?;
+        let existing = prelude::Users::find_by_id(user.id).one(transaction).await.map_err(handle_dberr)?;
+        if existing.is_none() {
+            return Err(Error::RepositoryError(RepositoryError::NotFound));
+        }
+        let existing = existing.unwrap();
+        if existing.version != user.version {
+            return Err(Error::RepositoryError(RepositoryError::Conflict));
+        }
+
+        let mut updater: users::ActiveModel = existing.clone().into();
+        if existing.name != user.name {
+            updater.name = Set(user.name);
+        }
+        if existing.email != user.email {
+            updater.email = Set(user.email);
+        }
+
+        let updated = updater.update(transaction).await.map_err(handle_dberr)?;
+
+        Ok(updated.into())
     }
 
     async fn find_by_email(&self, transaction: &dyn Transaction, email: &str) -> Result<Option<User>, Error> {
