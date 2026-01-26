@@ -23,6 +23,7 @@ name = "migrator"
 path = "src/bin/migrator.rs"
 
 [dependencies]
+hex-play-api.workspace = true
 hex-play-core.workspace = true
 hex-play-database.workspace = true
 
