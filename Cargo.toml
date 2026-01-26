@@ -14,11 +14,13 @@ repository = "https://github.com/szinn/hex-play"
 license = "MIT"
 
 [workspace.dependencies]
+hex-play-api = { path = "crates/api" }
 hex-play-core = { path = "crates/core" }
 hex-play-database = { path = "crates/database" }
 
 anyhow = "1.0.100"
 async-trait = "0.1.89"
+axum = "0.8.8"
 chrono = "0.4.43"
 config = "0.15.19"
 derive_builder = "0.20.2"
@@ -26,11 +28,21 @@ log = "0.4.29"
 serde_json = "1.0.149"
 thiserror = "2.0.18"
 tokio-graceful-shutdown = "0.19.2"
+tokio-util = "0.7"
+tower = "0.5.3"
 tracing-log = "0.2.0"
 
 [workspace.dependencies.clap]
 version = "4.5.54"
 features = ["cargo", "derive", "env"]
+
+[workspace.dependencies.hyper]
+version = "1.8.1"
+features = ["full"]
+
+[workspace.dependencies.hyper-util]
+version = "0.1.19"
+features = ["tokio", "server-auto", "http1"]
 
 [workspace.dependencies.insta]
 version = "1.46.1"
@@ -71,6 +83,10 @@ features = ["derive"]
 version = "1.49.0"
 default-features = false
 features = ["full"]
+
+[workspace.dependencies.tower-http]
+version = "0.6.8"
+features = ["request-id", "trace"]
 
 [workspace.dependencies.tracing]
 version = "0.1.44"
