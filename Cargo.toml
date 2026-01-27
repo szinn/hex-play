@@ -28,12 +28,11 @@ log = "0.4.29"
 serde_json = "1.0.149"
 thiserror = "2.0.18"
 tokio-graceful-shutdown = "0.19.2"
-tokio-util = "0.7"
 tower = "0.5.3"
 tracing-log = "0.2.0"
 
 [workspace.dependencies.clap]
-version = "4.5.54"
+version = "4.5.55"
 features = ["cargo", "derive", "env"]
 
 [workspace.dependencies.hyper]
@@ -53,7 +52,7 @@ version = "8.11.0"
 features = ["debug-embed"]
 
 [workspace.dependencies.sea-orm]
-version = "2.0.0-rc.28"
+version = "2.0.0-rc.30"
 features = [
     "debug-print",
     "mock",
@@ -66,7 +65,7 @@ features = [
 ]
 
 [workspace.dependencies.sea-orm-migration]
-version = "2.0.0-rc.28"
+version = "2.0.0-rc.30"
 features = [
     "sqlx-postgres",
     "runtime-tokio-rustls",
@@ -79,10 +78,19 @@ features = [
 version = "1.0.228"
 features = ["derive"]
 
+[workspace.dependencies.sqlx]
+version = "0.8"
+default-features = false
+
 [workspace.dependencies.tokio]
 version = "1.49.0"
 default-features = false
 features = ["full"]
+
+[workspace.dependencies.tokio-util]
+version = "0.7.18"
+default-features = false
+features = ["rt"]
 
 [workspace.dependencies.tower-http]
 version = "0.6.8"
