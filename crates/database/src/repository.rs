@@ -1,4 +1,7 @@
-use hex_play_core::{Error, Repository, Transaction};
+use hex_play_core::{
+    Error,
+    services::{Repository, Transaction},
+};
 use sea_orm::{AccessMode, DatabaseConnection, TransactionTrait};
 
 use crate::{TransactionImpl, error::handle_dberr};

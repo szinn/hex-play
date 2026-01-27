@@ -1,5 +1,9 @@
 use chrono::Utc;
-use hex_play_core::{Error, RepositoryError, Transaction, User, UserService};
+use hex_play_core::{
+    Error, RepositoryError,
+    models::{NewUser, User},
+    services::{Transaction, UserService},
+};
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, EntityTrait};
 
 use crate::{
@@ -32,7 +36,7 @@ impl UserServiceAdapter {
 #[async_trait::async_trait]
 impl UserService for UserServiceAdapter {
     #[tracing::instrument(level = "trace", skip(self, transaction))]
-    async fn add_user(&self, transaction: &dyn Transaction, user: User) -> Result<User, Error> {
+    async fn add_user(&self, transaction: &dyn Transaction, user: NewUser) -> Result<User, Error> {
         let transaction = TransactionImpl::get_db_transaction(transaction)?;
         let model = users::ActiveModel {
             name: Set(user.name),

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::RepositoryService;
+use crate::services::RepositoryService;
 
 pub struct CoreServices {
     pub(crate) repository_service: Arc<RepositoryService>,

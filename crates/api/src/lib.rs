@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use hex_play_core::{CoreServices, Error};
+use hex_play_core::{Error, services::CoreServices};
 use tokio_graceful_shutdown::{IntoSubsystem, SubsystemBuilder, SubsystemHandle};
 
 use crate::http::HttpSubsystem;

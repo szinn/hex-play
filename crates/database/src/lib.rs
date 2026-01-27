@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use hex_play_core::{Error, RepositoryService};
+use hex_play_core::{Error, services::RepositoryService};
 use sea_orm::DatabaseConnection;
 
 use crate::adapters::user::UserServiceAdapter;
