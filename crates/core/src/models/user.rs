@@ -14,3 +14,9 @@ pub struct User {
     #[builder(default = "Utc::now()")]
     pub updated_at: DateTime<Utc>,
 }
+
+#[derive(Debug, Default, Builder)]
+pub struct NewUser {
+    pub name: String,
+    pub email: String,
+}

@@ -6,7 +6,7 @@ use axum::{
     response::Html,
     routing::get,
 };
-use hex_play_core::{CoreServices, Error};
+use hex_play_core::{Error, services::CoreServices};
 use hyper::body::Incoming;
 use hyper_util::rt::TokioIo;
 use tokio::net::TcpStream;
