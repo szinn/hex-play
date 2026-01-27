@@ -24,6 +24,9 @@ pub enum RepositoryError {
     #[error("Not found")]
     NotFound,
 
+    #[error("Read-only Transaction")]
+    ReadOnly,
+
     #[error(transparent)]
     Any(#[from] Box<dyn std::error::Error + Send + Sync>),
 }

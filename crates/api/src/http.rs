@@ -11,12 +11,15 @@ use hyper::body::Incoming;
 use hyper_util::rt::TokioIo;
 use tokio::net::TcpStream;
 use tokio_graceful_shutdown::{IntoSubsystem, SubsystemHandle};
-use tokio_util::sync::CancellationToken;
+use tokio_util::{sync::CancellationToken, task::TaskTracker};
 use tower::{Service, ServiceBuilder};
 use tower_http::{
     request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer},
     trace::TraceLayer,
 };
+
+mod error;
+mod user;
 
 const REQUEST_ID_HEADER: &str = "x-request-id";
 
@@ -54,15 +57,16 @@ impl IntoSubsystem<Error> for HttpSubsystem {
             // send headers from request to response headers
             .layer(PropagateRequestIdLayer::new(x_request_id));
 
-        // build our application with a route
-        let app = Router::new().route("/", get(hello_handler)).layer(middleware);
+        // build our application
+        let user_routes = user::routes::get_routes(self.core_services.clone());
+        let app = Router::new().route("/", get(hello_handler)).merge(user_routes).layer(middleware);
 
         // run it
         let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
         println!("listening on {}", listener.local_addr().unwrap());
 
         let cancel_token = CancellationToken::new();
-
+        let connection_tracker = TaskTracker::new();
         loop {
             let (socket, remote_addr) = tokio::select! {
                 _ = subsys.on_shutdown_requested() => {
@@ -76,7 +80,7 @@ impl IntoSubsystem<Error> for HttpSubsystem {
             tracing::debug!("connection {} accepted", remote_addr);
             let tower_service = app.clone();
             let token = cancel_token.clone();
-            tokio::spawn(async move {
+            connection_tracker.spawn(async move {
                 if let Err(e) = handler(socket, remote_addr, tower_service, token).await {
                     tracing::error!("Handler error for {}: {}", remote_addr, e);
                 }
@@ -84,8 +88,12 @@ impl IntoSubsystem<Error> for HttpSubsystem {
         }
 
         // Signal all handlers to shut down gracefully
-        cancel_token.cancel();
         tracing::info!("HttpSubsystem shutting down");
+        cancel_token.cancel();
+        tracing::info!("Connection tracker has {} active sessions", connection_tracker.len());
+        connection_tracker.close();
+        connection_tracker.wait().await;
+
         Ok(())
     }
 }
@@ -104,6 +112,8 @@ async fn handler(socket: TcpStream, remote_addr: SocketAddr, tower_service: Rout
         }
         _ = cancel_token.cancelled() => {
             tracing::debug!("signal received, starting graceful shutdown");
+            conn.as_mut().graceful_shutdown();
+            let _ = conn.await;
         }
     }
 
