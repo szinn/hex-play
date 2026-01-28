@@ -17,7 +17,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Beginning of User service
 - Added update for User service
 - CoreServices framework
+- Api framework
+- Adding an api route to core services
 
 ### Miscellaneous Tasks
 
 - Update to sea-orm 2.0.0-rc
+- Formatting
+
+### Refactor
+
+- _(core)_ Improve module organization and add NewUser model
