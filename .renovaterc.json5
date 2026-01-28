@@ -1,94 +1,133 @@
 {
-  // General RenovateBot configuration
-  "extends": [
-    "config:base",
-    ":dependencyDashboard",
-    ":disableRateLimiting",
-    "docker:enableMajor",
-    "docker:pinDigests",
-    ":automergeDigest",
-    ":enablePreCommit",
-    ":semanticCommits"
+  extends: [
+    'config:recommended',
+    ':dependencyDashboard',
+    ':disableRateLimiting',
+    'docker:enableMajor',
+    'docker:pinDigests',
+    ':automergeDigest',
+    ':enablePreCommit',
+    ':semanticCommits',
   ],
-  "gitAuthor": "repo-jeeves <106431701+repo-jeeves[bot]@users.noreply.github.com>",
-  "timezone": "America/Toronto",
-  "dependencyDashboardTitle": "Renovate Dashboard",
-  "suppressNotifications": ["prIgnoreNotification"],
-  "commitBodyTable": true,
-  "commitMessageTopic": "{{depName}}",
-  "commitMessageExtra": "to {{newVersion}}",
-  "commitMessageSuffix": "",
-  "regexManagers": [],
-  "packageRules": [
-    // Auto-merge
+  gitAuthor: 'repo-jeeves <106431701+repo-jeeves[bot]@users.noreply.github.com>',
+  timezone: 'America/Toronto',
+  dependencyDashboardTitle: 'Renovate Dashboard',
+  suppressNotifications: [
+    'prIgnoreNotification',
+  ],
+  commitBodyTable: true,
+  commitMessageTopic: '{{depName}}',
+  commitMessageExtra: 'to {{newVersion}}',
+  commitMessageSuffix: '',
+  customManagers: [],
+  packageRules: [
     {
-      "matchManagers": ["github-actions"],
-      "automerge": true,
-      "automergeType": "branch",
-      "requiredStatusChecks": null,
-      "matchUpdateTypes": ["minor", "patch"]
-    },
-
-    // // PR labels
-    {
-      "matchUpdateTypes": ["major"],
-      "labels": ["type/major"]
-    },
-    {
-      "matchUpdateTypes": ["minor"],
-      "labels": ["type/minor"]
+      matchManagers: [
+        'github-actions',
+      ],
+      automerge: true,
+      automergeType: 'branch',
+      ignoreTests: true,
+      matchUpdateTypes: [
+        'minor',
+        'patch',
+      ],
     },
     {
-      "matchUpdateTypes": ["patch"],
-      "labels": ["type/patch"]
+      matchUpdateTypes: [
+        'major',
+      ],
+      labels: [
+        'type/major',
+      ],
     },
     {
-      "matchDatasources": ["docker"],
-      "addLabels": ["docker"]
+      matchUpdateTypes: [
+        'minor',
+      ],
+      labels: [
+        'type/minor',
+      ],
     },
     {
-      "matchManagers": ["github-actions"],
-      "addLabels": ["ci"]
+      matchUpdateTypes: [
+        'patch',
+      ],
+      labels: [
+        'type/patch',
+      ],
     },
     {
-      "matchDatasources": ["cargo"],
-      "addLabels": ["dependency"]
-    },
-
-    // Commit message
-    {
-      "matchDatasources": ["cargo"],
-      "commitMessageTopic": "Crate {{depName}}"
+      matchDatasources: [
+        'docker',
+      ],
+      addLabels: [
+        'docker',
+      ],
     },
     {
-      "matchDatasources": ["docker"],
-      "commitMessageTopic": "Docker image {{depName}}"
-    },
-
-    // Semantic commits
-    {
-      "matchUpdateTypes": ["major"],
-      "semanticCommitType": "feat!"
+      matchManagers: [
+        'github-actions',
+      ],
+      addLabels: [
+        'ci',
+      ],
     },
     {
-      "matchUpdateTypes": ["minor"],
-      "semanticCommitType": "feat"
+      matchDatasources: [
+        'cargo',
+      ],
+      addLabels: [
+        'dependency',
+      ],
     },
     {
-      "matchUpdateTypes": ["patch"],
-      "semanticCommitType": "fix"
+      matchDatasources: [
+        'cargo',
+      ],
+      commitMessageTopic: 'Crate {{depName}}',
     },
     {
-      "matchDatasources": ["docker"],
-      "semanticCommitScope": "deps"
+      matchDatasources: [
+        'docker',
+      ],
+      commitMessageTopic: 'Docker image {{depName}}',
     },
     {
-      "matchDatasources": ["cargo"],
-      "semanticCommitScope": "deps"
+      matchUpdateTypes: [
+        'major',
+      ],
+      semanticCommitType: 'feat!',
     },
     {
-      "matchManagers": ["github-actions"],
-      "semanticCommitScope": "deps"
-    }
-  ]
+      matchUpdateTypes: [
+        'minor',
+      ],
+      semanticCommitType: 'feat',
+    },
+    {
+      matchUpdateTypes: [
+        'patch',
+      ],
+      semanticCommitType: 'fix',
+    },
+    {
+      matchDatasources: [
+        'docker',
+      ],
+      semanticCommitScope: 'deps',
+    },
+    {
+      matchDatasources: [
+        'cargo',
+      ],
+      semanticCommitScope: 'deps',
+    },
+    {
+      matchManagers: [
+        'github-actions',
+      ],
+      semanticCommitScope: 'deps',
+    },
+  ],
 }
