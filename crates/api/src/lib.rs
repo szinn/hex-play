@@ -19,8 +19,10 @@ impl IntoSubsystem<Error> for ApiSubsystem {
         subsys.start(SubsystemBuilder::new("Http", http_subsystem.into_subsystem()));
 
         tracing::info!("ApiSubsystem started");
+
         subsys.on_shutdown_requested().await;
         tracing::info!("ApiSubsystem shutting down");
+
         Ok(())
     }
 }
