@@ -38,6 +38,7 @@ impl UserService for UserServiceAdapter {
     #[tracing::instrument(level = "trace", skip(self, transaction))]
     async fn add_user(&self, transaction: &dyn Transaction, user: NewUser) -> Result<User, Error> {
         let transaction = TransactionImpl::get_db_transaction(transaction)?;
+
         let model = users::ActiveModel {
             name: Set(user.name),
             email: Set(user.email),
@@ -53,10 +54,12 @@ impl UserService for UserServiceAdapter {
     #[tracing::instrument(level = "trace", skip(self, transaction))]
     async fn update_user(&self, transaction: &dyn Transaction, user: User) -> Result<User, Error> {
         let transaction = TransactionImpl::get_db_transaction(transaction)?;
+
         let existing = prelude::Users::find_by_id(user.id).one(transaction).await.map_err(handle_dberr)?;
         if existing.is_none() {
             return Err(Error::RepositoryError(RepositoryError::NotFound));
         }
+
         let existing = existing.unwrap();
         if existing.version != user.version {
             return Err(Error::RepositoryError(RepositoryError::Conflict));
@@ -75,6 +78,15 @@ impl UserService for UserServiceAdapter {
         Ok(updated.into())
     }
 
+    #[tracing::instrument(level = "trace", skip(self, transaction))]
+    async fn find_by_id(&self, transaction: &dyn Transaction, id: i64) -> Result<Option<User>, Error> {
+        let transaction = TransactionImpl::get_db_transaction(transaction)?;
+
+        match prelude::Users::find_by_id(id).one(transaction).await.map_err(handle_dberr)? {
+            Some(model) => Ok(Some(model.into())),
+            None => Ok(None),
+        }
+    }
     #[tracing::instrument(level = "trace", skip(self, transaction))]
     async fn find_by_email(&self, transaction: &dyn Transaction, email: &str) -> Result<Option<User>, Error> {
         let transaction = TransactionImpl::get_db_transaction(transaction)?;

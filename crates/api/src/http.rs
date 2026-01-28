@@ -40,7 +40,6 @@ impl IntoSubsystem<Error> for HttpSubsystem {
         let middleware = ServiceBuilder::new()
             .layer(SetRequestIdLayer::new(x_request_id.clone(), MakeRequestUuid))
             .layer(TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
-                // Log the request id as generated.
                 let request_id = request.headers().get(REQUEST_ID_HEADER);
 
                 match request_id {
@@ -54,19 +53,17 @@ impl IntoSubsystem<Error> for HttpSubsystem {
                     }
                 }
             }))
-            // send headers from request to response headers
             .layer(PropagateRequestIdLayer::new(x_request_id));
 
-        // build our application
         let user_routes = user::routes::get_routes(self.core_services.clone());
         let app = Router::new().route("/", get(hello_handler)).merge(user_routes).layer(middleware);
 
-        // run it
         let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-        println!("listening on {}", listener.local_addr().unwrap());
+        tracing::info!("listening on {}", listener.local_addr().unwrap());
 
         let cancel_token = CancellationToken::new();
         let connection_tracker = TaskTracker::new();
+
         loop {
             let (socket, remote_addr) = tokio::select! {
                 _ = subsys.on_shutdown_requested() => {
@@ -77,6 +74,7 @@ impl IntoSubsystem<Error> for HttpSubsystem {
                     result.unwrap()
                 }
             };
+
             tracing::debug!("connection {} accepted", remote_addr);
             let tower_service = app.clone();
             let token = cancel_token.clone();
@@ -87,12 +85,12 @@ impl IntoSubsystem<Error> for HttpSubsystem {
             });
         }
 
-        // Signal all handlers to shut down gracefully
-        tracing::info!("HttpSubsystem shutting down");
+        tracing::info!("HttpSubsystem shutting down...");
         cancel_token.cancel();
         tracing::info!("Connection tracker has {} active sessions", connection_tracker.len());
         connection_tracker.close();
         connection_tracker.wait().await;
+        tracing::info!("HttpSubsystem shut down");
 
         Ok(())
     }

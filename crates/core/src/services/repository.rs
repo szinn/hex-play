@@ -22,8 +22,9 @@ pub trait Transaction: Any + Send + Sync {
 #[async_trait::async_trait]
 pub trait UserService: Send + Sync {
     async fn add_user(&self, transaction: &dyn Transaction, user: NewUser) -> Result<User, Error>;
-    async fn find_by_email(&self, transaction: &dyn Transaction, email: &str) -> Result<Option<User>, Error>;
     async fn update_user(&self, transaction: &dyn Transaction, user: User) -> Result<User, Error>;
+    async fn find_by_id(&self, transaction: &dyn Transaction, id: i64) -> Result<Option<User>, Error>;
+    async fn find_by_email(&self, transaction: &dyn Transaction, email: &str) -> Result<Option<User>, Error>;
 }
 
 pub struct RepositoryService {

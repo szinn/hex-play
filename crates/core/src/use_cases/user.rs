@@ -6,13 +6,13 @@ mod sample;
 
 use sample::*;
 
-pub(crate) struct UserUseCasesImpl {
-    repository_service: Arc<RepositoryService>,
-}
-
 #[async_trait::async_trait]
 pub trait UserUseCases: Send + Sync {
     async fn sample_work(&self) -> Result<(), Error>;
+}
+
+pub(crate) struct UserUseCasesImpl {
+    repository_service: Arc<RepositoryService>,
 }
 
 impl UserUseCasesImpl {
