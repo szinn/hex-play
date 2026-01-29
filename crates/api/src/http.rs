@@ -38,20 +38,18 @@ impl IntoSubsystem<Error> for HttpSubsystem {
         let x_request_id = HeaderName::from_static(REQUEST_ID_HEADER);
 
         let middleware = ServiceBuilder::new()
-            .layer(SetRequestIdLayer::new(x_request_id.clone(), MakeRequestUuid))
+            .layer(SetRequestIdLayer::x_request_id(MakeRequestUuid))
             .layer(TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
-                let request_id = request.headers().get(REQUEST_ID_HEADER);
+                let request_id = request
+                    .headers()
+                    .get(REQUEST_ID_HEADER)
+                    .map(|v| v.to_str().unwrap_or_default())
+                    .unwrap_or_default();
 
-                match request_id {
-                    Some(request_id) => tracing::info_span!(
-                        "http_request",
-                        request_id = ?request_id,
-                    ),
-                    None => {
-                        tracing::error!("could not extract request_id");
-                        tracing::info_span!("http_request")
-                    }
-                }
+                tracing::info_span!(
+                    "http",
+                    request_id = ?request_id,
+                )
             }))
             .layer(PropagateRequestIdLayer::new(x_request_id));
 
