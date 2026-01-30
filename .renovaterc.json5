@@ -11,15 +11,15 @@
     ":semanticCommits",
     ":automergeBranch"
   ],
-  gitAuthor: "repo-jeeves <106431701+repo-jeeves[bot]@users.noreply.github.com>",
+  // gitAuthor: "repo-jeeves <106431701+repo-jeeves[bot]@users.noreply.github.com>",
   timezone: "America/Toronto",
   dependencyDashboardTitle: "Renovate Dashboard",
   suppressNotifications: ["prIgnoreNotification"],
   commitBodyTable: true,
   prBodyTemplate: "{{{header}}}{{{table}}}{{{warnings}}}{{{notes}}}{{{changelogs}}}",
-  commitMessageTopic: "{{depName}}",
-  commitMessageExtra: "to {{newVersion}}",
-  commitMessageSuffix: "",
+  // commitMessageTopic: "{{depName}}",
+  // commitMessageExtra: "to {{newVersion}}",
+  // commitMessageSuffix: "",
   packageRules: [
     // GitHub Actions: auto-merge minor, patch, and digest updates
     {
