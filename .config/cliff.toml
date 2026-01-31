@@ -24,13 +24,13 @@ body = """
 {% endif %}\
 {% for group, commits in commits | group_by(attribute="group") %}
     ### {{ group | upper_first }}
-    {% for commit in commits
-    | filter(attribute="scope")
-    | sort(attribute="scope") %}
-        - *({{commit.scope}})* {{ commit.message | upper_first }}
-        {%- if commit.breaking %}
-        {% raw %}  {% endraw %}- **BREAKING**: {{commit.breaking_description}}
-        {%- endif -%}
+    {% for group, commit in commits | group_by(attribute="scope") %}
+        {% for commit in commits %}
+          - {% if commit.scope %} *({{commit.scope}})* {% endif %} {{ commit.message | upper_first }}
+          {%- if commit.breaking %}
+          {% raw %}  {% endraw %}- **BREAKING**: {{commit.breaking_description}}
+          {%- endif -%}
+        {% endfor -%}
     {%- endfor -%}
     {% raw %}\n{% endraw %}\
     {%- for commit in commits %}
