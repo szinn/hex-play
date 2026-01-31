@@ -2,7 +2,7 @@ use chrono::Utc;
 use hex_play_core::{
     Error, RepositoryError,
     models::{NewUser, User},
-    services::{Transaction, UserRepository},
+    repositories::{Transaction, UserRepository},
 };
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, ModelTrait, QueryFilter, QueryOrder, QuerySelect, prelude::Uuid};
 
@@ -172,7 +172,7 @@ impl UserRepository for UserRepositoryAdapter {
 #[cfg(test)]
 mod tests {
     use chrono::{TimeZone, Utc};
-    use hex_play_core::{Error, RepositoryError, models::NewUser, services::UserRepository};
+    use hex_play_core::{Error, RepositoryError, models::NewUser, repositories::UserRepository};
     use sea_orm::{DatabaseBackend, MockDatabase, MockExecResult, prelude::Uuid};
 
     use super::UserRepositoryAdapter;

@@ -3,7 +3,7 @@ use uuid::Uuid;
 use crate::{
     Error,
     models::{NewUser, User},
-    services::Transaction,
+    repositories::Transaction,
 };
 
 #[async_trait::async_trait]

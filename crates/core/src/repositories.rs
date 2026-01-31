@@ -1,9 +1,12 @@
 use std::{any::Any, future::Future, pin::Pin, sync::Arc};
 
-use crate::{
-    Error,
-    services::{UserInfoRepository, UserRepository},
-};
+pub mod user;
+pub mod user_info;
+
+pub use user::UserRepository;
+pub use user_info::UserInfoRepository;
+
+use crate::Error;
 
 /// Execute an async operation within a read-write transaction.
 ///
@@ -28,7 +31,7 @@ use crate::{
 macro_rules! with_transaction {
     ($self:expr, $($repo:ident),+ , |$tx:ident| $body:expr) => {{
         $(let $repo = $self.repository_service.$repo.clone();)+
-        $crate::services::transaction(&*$self.repository_service.repository, |$tx| Box::pin(async move { $body })).await
+        $crate::repositories::transaction(&*$self.repository_service.repository, |$tx| Box::pin(async move { $body })).await
     }};
 }
 
@@ -55,7 +58,7 @@ macro_rules! with_transaction {
 macro_rules! with_read_only_transaction {
     ($self:expr, $($repo:ident),+ , |$tx:ident| $body:expr) => {{
         $(let $repo = $self.repository_service.$repo.clone();)+
-        $crate::services::read_only_transaction(&*$self.repository_service.repository, |$tx| Box::pin(async move { $body })).await
+        $crate::repositories::read_only_transaction(&*$self.repository_service.repository, |$tx| Box::pin(async move { $body })).await
     }};
 }
 

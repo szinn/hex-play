@@ -2,7 +2,7 @@ use chrono::Utc;
 use hex_play_core::{
     Error,
     models::user_info::UserInfo,
-    services::{Transaction, user_info::UserInfoRepository},
+    repositories::{Transaction, UserInfoRepository},
 };
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, QueryFilter, prelude::Uuid};
 

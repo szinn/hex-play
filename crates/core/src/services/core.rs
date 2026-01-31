@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    services::RepositoryService,
+    repositories::RepositoryService,
     use_cases::{UserUseCases, UserUseCasesImpl},
 };
 

@@ -1,6 +1,6 @@
 use uuid::Uuid;
 
-use crate::{Error, models::user_info::UserInfo, services::Transaction};
+use crate::{Error, models::user_info::UserInfo, repositories::Transaction};
 
 #[async_trait::async_trait]
 pub trait UserInfoRepository: Send + Sync {

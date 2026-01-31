@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use hex_play_core::{Error, services::RepositoryService};
+use hex_play_core::{Error, repositories::RepositoryService};
 use sea_orm::DatabaseConnection;
 
 use crate::adapters::{user::UserRepositoryAdapter, user_info::UserInfoRepositoryAdapter};
@@ -41,7 +41,7 @@ pub async fn create_repository_service(database: DatabaseConnection) -> Result<A
 pub mod test_support {
     use std::sync::Arc;
 
-    use hex_play_core::services::RepositoryService;
+    use hex_play_core::repositories::RepositoryService;
     use sea_orm::{DatabaseBackend, DatabaseConnection, MockDatabase};
 
     use crate::{

@@ -5,7 +5,7 @@ use uuid::Uuid;
 use crate::{
     Error, RepositoryError,
     models::{NewUser, User},
-    services::RepositoryService,
+    repositories::RepositoryService,
     with_read_only_transaction, with_transaction,
 };
 
@@ -130,7 +130,7 @@ mod tests {
     use crate::{
         Error, RepositoryError,
         models::{NewUser, User, user_info::UserInfo},
-        services::{Repository, RepositoryService, Transaction, UserInfoRepository, UserRepository},
+        repositories::{Repository, RepositoryService, Transaction, UserInfoRepository, UserRepository},
     };
 
     // ===================
