@@ -71,7 +71,7 @@ async fn create_user(
     State(core_services): State<Arc<CoreServices>>,
     Json(request): Json<CreateUserRequest>,
 ) -> Result<(StatusCode, Json<UserResponse>), Error> {
-    let user = core_services.user.add_user(request.into()).await.map_err(Error::Core)?;
+    let user = core_services.user_service.add_user(request.into()).await.map_err(Error::Core)?;
     Ok((StatusCode::CREATED, Json(user.into())))
 }
 
@@ -89,7 +89,7 @@ pub struct ListUsersResponse {
 #[tracing::instrument(level = "trace", skip(core_services))]
 async fn list_users(Query(opts): Query<FilterOptions>, State(core_services): State<Arc<CoreServices>>) -> Result<Json<ListUsersResponse>, Error> {
     let users = core_services
-        .user
+        .user_service
         .list_users(opts.start_id, opts.page_size)
         .await
         .map_err(Error::Core)?
@@ -102,13 +102,18 @@ async fn list_users(Query(opts): Query<FilterOptions>, State(core_services): Sta
 
 #[tracing::instrument(level = "trace", skip(core_services))]
 async fn get_user(Path(id): Path<i64>, State(core_services): State<Arc<CoreServices>>) -> Result<Json<UserResponse>, Error> {
-    let user = core_services.user.find_by_id(id).await.map_err(Error::Core)?.ok_or(Error::NotFound)?;
+    let user = core_services.user_service.find_by_id(id).await.map_err(Error::Core)?.ok_or(Error::NotFound)?;
     Ok(Json(user.into()))
 }
 
 #[tracing::instrument(level = "trace", skip(core_services))]
 async fn get_user_by_token(Path(token): Path<Uuid>, State(core_services): State<Arc<CoreServices>>) -> Result<Json<UserResponse>, Error> {
-    let user = core_services.user.find_by_token(token).await.map_err(Error::Core)?.ok_or(Error::NotFound)?;
+    let user = core_services
+        .user_service
+        .find_by_token(token)
+        .await
+        .map_err(Error::Core)?
+        .ok_or(Error::NotFound)?;
     Ok(Json(user.into()))
 }
 
@@ -125,7 +130,7 @@ async fn update_user(
     State(core_services): State<Arc<CoreServices>>,
     Json(request): Json<UpdateUserRequest>,
 ) -> Result<Json<UserResponse>, Error> {
-    let mut user = core_services.user.find_by_id(id).await.map_err(Error::Core)?.ok_or(Error::NotFound)?;
+    let mut user = core_services.user_service.find_by_id(id).await.map_err(Error::Core)?.ok_or(Error::NotFound)?;
 
     if let Some(name) = request.name {
         user.name = name;
@@ -137,13 +142,13 @@ async fn update_user(
         user.age = age;
     }
 
-    let user = core_services.user.update_user(user).await.map_err(Error::Core)?;
+    let user = core_services.user_service.update_user(user).await.map_err(Error::Core)?;
     Ok(Json(user.into()))
 }
 
 #[tracing::instrument(level = "trace", skip(core_services))]
 async fn delete_user(Path(id): Path<i64>, State(core_services): State<Arc<CoreServices>>) -> Result<Json<UserResponse>, Error> {
-    let user = core_services.user.delete_user(id).await.map_err(Error::Core)?;
+    let user = core_services.user_service.delete_user(id).await.map_err(Error::Core)?;
     Ok(Json(user.into()))
 }
 
@@ -159,8 +164,7 @@ mod tests {
     use hex_play_core::{
         Error, RepositoryError,
         models::{NewUser, User},
-        services::CoreServices,
-        use_cases::UserUseCases,
+        services::{CoreServices, UserService},
     };
     use tower::ServiceExt;
     use uuid::Uuid;
@@ -168,10 +172,10 @@ mod tests {
     use super::get_routes;
 
     // ===================
-    // Mock UserUseCases
+    // Mock UserService
     // ===================
     #[derive(Default)]
-    struct MockUserUseCases {
+    struct MockUserService {
         add_user_result: Mutex<Option<Result<User, Error>>>,
         update_user_result: Mutex<Option<Result<User, Error>>>,
         delete_user_result: Mutex<Option<Result<User, Error>>>,
@@ -180,7 +184,7 @@ mod tests {
         list_users_result: Mutex<Option<Result<Vec<User>, Error>>>,
     }
 
-    impl MockUserUseCases {
+    impl MockUserService {
         fn with_add_user_result(self, result: Result<User, Error>) -> Self {
             *self.add_user_result.lock().unwrap() = Some(result);
             self
@@ -213,7 +217,7 @@ mod tests {
     }
 
     #[async_trait::async_trait]
-    impl UserUseCases for MockUserUseCases {
+    impl UserService for MockUserService {
         async fn add_user(&self, _user: NewUser) -> Result<User, Error> {
             self.add_user_result
                 .lock()
@@ -266,8 +270,8 @@ mod tests {
     // ===================
     // Test Helpers
     // ===================
-    fn create_test_app(mock: MockUserUseCases) -> Router {
-        let core_services = Arc::new(CoreServices { user: Arc::new(mock) });
+    fn create_test_app(mock: MockUserService) -> Router {
+        let core_services = Arc::new(CoreServices { user_service: Arc::new(mock) });
         get_routes(core_services)
     }
 
@@ -282,7 +286,7 @@ mod tests {
     #[tokio::test]
     async fn test_create_user_success() {
         let user = User::test_with_age(1, "John Doe", "john@example.com", 30);
-        let mock = MockUserUseCases::default().with_add_user_result(Ok(user));
+        let mock = MockUserService::default().with_add_user_result(Ok(user));
         let app = create_test_app(mock);
 
         let response = app
@@ -309,7 +313,7 @@ mod tests {
     #[tokio::test]
     async fn test_create_user_without_age_defaults_to_zero() {
         let user = User::test(1, "John Doe", "john@example.com");
-        let mock = MockUserUseCases::default().with_add_user_result(Ok(user));
+        let mock = MockUserService::default().with_add_user_result(Ok(user));
         let app = create_test_app(mock);
 
         let response = app
@@ -332,7 +336,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_user_invalid_json() {
-        let mock = MockUserUseCases::default();
+        let mock = MockUserService::default();
         let app = create_test_app(mock);
 
         let response = app
@@ -353,7 +357,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_user_missing_fields() {
-        let mock = MockUserUseCases::default();
+        let mock = MockUserService::default();
         let app = create_test_app(mock);
 
         let response = app
@@ -373,7 +377,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_user_constraint_violation() {
-        let mock = MockUserUseCases::default().with_add_user_result(Err(Error::RepositoryError(RepositoryError::Constraint("duplicate email".into()))));
+        let mock = MockUserService::default().with_add_user_result(Err(Error::RepositoryError(RepositoryError::Constraint("duplicate email".into()))));
         let app = create_test_app(mock);
 
         let response = app
@@ -400,7 +404,7 @@ mod tests {
             User::test_with_age(1, "John Doe", "john@example.com", 30),
             User::test_with_age(2, "Jane Doe", "jane@example.com", 25),
         ];
-        let mock = MockUserUseCases::default().with_list_users_result(Ok(users));
+        let mock = MockUserService::default().with_list_users_result(Ok(users));
         let app = create_test_app(mock);
 
         let response = app
@@ -420,7 +424,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_list_users_empty() {
-        let mock = MockUserUseCases::default().with_list_users_result(Ok(vec![]));
+        let mock = MockUserService::default().with_list_users_result(Ok(vec![]));
         let app = create_test_app(mock);
 
         let response = app
@@ -437,7 +441,7 @@ mod tests {
     #[tokio::test]
     async fn test_list_users_with_pagination() {
         let users = vec![User::test(5, "User Five", "five@example.com")];
-        let mock = MockUserUseCases::default().with_list_users_result(Ok(users));
+        let mock = MockUserService::default().with_list_users_result(Ok(users));
         let app = create_test_app(mock);
 
         let response = app
@@ -456,7 +460,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_list_users_invalid_start_id() {
-        let mock = MockUserUseCases::default().with_list_users_result(Err(Error::InvalidId(-1)));
+        let mock = MockUserService::default().with_list_users_result(Err(Error::InvalidId(-1)));
         let app = create_test_app(mock);
 
         let response = app
@@ -469,7 +473,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_list_users_invalid_page_size() {
-        let mock = MockUserUseCases::default().with_list_users_result(Err(Error::InvalidPageSize(0)));
+        let mock = MockUserService::default().with_list_users_result(Err(Error::InvalidPageSize(0)));
         let app = create_test_app(mock);
 
         let response = app
@@ -486,7 +490,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_user_success() {
         let user = User::test_with_age(1, "John Doe", "john@example.com", 30);
-        let mock = MockUserUseCases::default().with_find_by_id_result(Ok(Some(user)));
+        let mock = MockUserService::default().with_find_by_id_result(Ok(Some(user)));
         let app = create_test_app(mock);
 
         let response = app
@@ -504,7 +508,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_user_not_found() {
-        let mock = MockUserUseCases::default().with_find_by_id_result(Ok(None));
+        let mock = MockUserService::default().with_find_by_id_result(Ok(None));
         let app = create_test_app(mock);
 
         let response = app
@@ -517,7 +521,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_user_invalid_id() {
-        let mock = MockUserUseCases::default().with_find_by_id_result(Err(Error::InvalidId(-1)));
+        let mock = MockUserService::default().with_find_by_id_result(Err(Error::InvalidId(-1)));
         let app = create_test_app(mock);
 
         let response = app
@@ -535,7 +539,7 @@ mod tests {
     async fn test_update_user_success() {
         let existing = User::test_with_age(1, "John Doe", "john@example.com", 30);
         let updated = User::test_with_age(1, "John Updated", "john@example.com", 30);
-        let mock = MockUserUseCases::default()
+        let mock = MockUserService::default()
             .with_find_by_id_result(Ok(Some(existing)))
             .with_update_user_result(Ok(updated));
         let app = create_test_app(mock);
@@ -563,7 +567,7 @@ mod tests {
     async fn test_update_user_partial_email() {
         let existing = User::test_with_age(1, "John Doe", "john@example.com", 25);
         let updated = User::test_with_age(1, "John Doe", "john.new@example.com", 25);
-        let mock = MockUserUseCases::default()
+        let mock = MockUserService::default()
             .with_find_by_id_result(Ok(Some(existing)))
             .with_update_user_result(Ok(updated));
         let app = create_test_app(mock);
@@ -591,7 +595,7 @@ mod tests {
     async fn test_update_user_age() {
         let existing = User::test_with_age(1, "John Doe", "john@example.com", 30);
         let updated = User::test_with_age(1, "John Doe", "john@example.com", 31);
-        let mock = MockUserUseCases::default()
+        let mock = MockUserService::default()
             .with_find_by_id_result(Ok(Some(existing)))
             .with_update_user_result(Ok(updated));
         let app = create_test_app(mock);
@@ -617,7 +621,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_update_user_not_found() {
-        let mock = MockUserUseCases::default().with_find_by_id_result(Ok(None));
+        let mock = MockUserService::default().with_find_by_id_result(Ok(None));
         let app = create_test_app(mock);
 
         let response = app
@@ -638,7 +642,7 @@ mod tests {
     #[tokio::test]
     async fn test_update_user_conflict() {
         let existing = User::test(1, "John Doe", "john@example.com");
-        let mock = MockUserUseCases::default()
+        let mock = MockUserService::default()
             .with_find_by_id_result(Ok(Some(existing)))
             .with_update_user_result(Err(Error::RepositoryError(RepositoryError::Conflict)));
         let app = create_test_app(mock);
@@ -664,7 +668,7 @@ mod tests {
     #[tokio::test]
     async fn test_delete_user_success() {
         let user = User::test_with_age(1, "John Doe", "john@example.com", 30);
-        let mock = MockUserUseCases::default().with_delete_user_result(Ok(user));
+        let mock = MockUserService::default().with_delete_user_result(Ok(user));
         let app = create_test_app(mock);
 
         let response = app
@@ -682,7 +686,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_user_not_found() {
-        let mock = MockUserUseCases::default().with_delete_user_result(Err(Error::RepositoryError(RepositoryError::NotFound)));
+        let mock = MockUserService::default().with_delete_user_result(Err(Error::RepositoryError(RepositoryError::NotFound)));
         let app = create_test_app(mock);
 
         let response = app
@@ -700,7 +704,7 @@ mod tests {
     async fn test_get_user_by_token_success() {
         let user = User::test_with_age(1, "John Doe", "john@example.com", 30);
         let token = user.token;
-        let mock = MockUserUseCases::default().with_find_by_token_result(Ok(Some(user)));
+        let mock = MockUserService::default().with_find_by_token_result(Ok(Some(user)));
         let app = create_test_app(mock);
 
         let response = app
@@ -725,7 +729,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_user_by_token_not_found() {
-        let mock = MockUserUseCases::default().with_find_by_token_result(Ok(None));
+        let mock = MockUserService::default().with_find_by_token_result(Ok(None));
         let app = create_test_app(mock);
 
         let token = Uuid::new_v4();
@@ -745,7 +749,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_user_by_token_invalid_uuid() {
-        let mock = MockUserUseCases::default();
+        let mock = MockUserService::default();
         let app = create_test_app(mock);
 
         let response = app

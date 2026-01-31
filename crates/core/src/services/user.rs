@@ -10,7 +10,7 @@ use crate::{
 };
 
 #[async_trait::async_trait]
-pub trait UserUseCases: Send + Sync {
+pub trait UserService: Send + Sync {
     async fn add_user(&self, user: NewUser) -> Result<User, Error>;
     async fn update_user(&self, user: User) -> Result<User, Error>;
     async fn list_users(&self, start_id: Option<i64>, page_size: Option<u64>) -> Result<Vec<User>, Error>;
@@ -19,26 +19,26 @@ pub trait UserUseCases: Send + Sync {
     async fn find_by_token(&self, token: Uuid) -> Result<Option<User>, Error>;
 }
 
-pub(crate) struct UserUseCasesImpl {
+pub(crate) struct UserServiceImpl {
     repository_service: Arc<RepositoryService>,
 }
 
-impl UserUseCasesImpl {
+impl UserServiceImpl {
     pub(crate) fn new(repository_service: Arc<RepositoryService>) -> Self {
         Self { repository_service }
     }
 }
 
 #[async_trait::async_trait]
-impl UserUseCases for UserUseCasesImpl {
+impl UserService for UserServiceImpl {
     #[tracing::instrument(level = "trace", skip(self, user))]
     async fn add_user(&self, user: NewUser) -> Result<User, Error> {
         let age = user.age;
 
         with_transaction!(self, user_repository, user_info_repository, |tx| {
             let mut user = user_repository.add_user(tx, user).await?;
-            user_info_repository.add_info(tx, user.token, age).await?;
-            user.age = age;
+            let user_info = user_info_repository.add_info(tx, user.token, age).await?;
+            user.age = user_info.age;
             Ok(user)
         })
     }
@@ -49,8 +49,8 @@ impl UserUseCases for UserUseCasesImpl {
 
         with_transaction!(self, user_repository, user_info_repository, |tx| {
             let mut updated_user = user_repository.update_user(tx, user).await?;
-            user_info_repository.update_info(tx, updated_user.token, age).await?;
-            updated_user.age = age;
+            let user_info = user_info_repository.update_info(tx, updated_user.token, age).await?;
+            updated_user.age = user_info.age;
             Ok(updated_user)
         })
     }
@@ -82,8 +82,8 @@ impl UserUseCases for UserUseCasesImpl {
                 .ok_or(Error::RepositoryError(RepositoryError::NotFound))?;
 
             // Get age before deletion (cascade will delete user_info)
-            if let Some(info) = user_info_repository.find_by_token(tx, user.token).await? {
-                user.age = info.age;
+            if let Some(user_info) = user_info_repository.find_by_token(tx, user.token).await? {
+                user.age = user_info.age;
             }
 
             user_repository.delete_user(tx, user).await
@@ -96,8 +96,8 @@ impl UserUseCases for UserUseCasesImpl {
             let Some(mut user) = user_repository.find_by_id(tx, id).await? else {
                 return Ok(None);
             };
-            if let Some(info) = user_info_repository.find_by_token(tx, user.token).await? {
-                user.age = info.age;
+            if let Some(user_info) = user_info_repository.find_by_token(tx, user.token).await? {
+                user.age = user_info.age;
             }
             Ok(Some(user))
         })
@@ -109,8 +109,8 @@ impl UserUseCases for UserUseCasesImpl {
             let Some(mut user) = user_repository.find_by_token(tx, token).await? else {
                 return Ok(None);
             };
-            if let Some(info) = user_info_repository.find_by_token(tx, user.token).await? {
-                user.age = info.age;
+            if let Some(user_info) = user_info_repository.find_by_token(tx, user.token).await? {
+                user.age = user_info.age;
             }
             Ok(Some(user))
         })
@@ -126,7 +126,7 @@ mod tests {
 
     use uuid::Uuid;
 
-    use super::{UserUseCases, UserUseCasesImpl};
+    use super::{UserService, UserServiceImpl};
     use crate::{
         Error, RepositoryError,
         models::{NewUser, User, user_info::UserInfo},
@@ -328,17 +328,17 @@ mod tests {
     // ===================
     // Test Helpers
     // ===================
-    fn create_use_cases(mock_user_repository: MockUserRepository) -> UserUseCasesImpl {
+    fn create_use_cases(mock_user_repository: MockUserRepository) -> UserServiceImpl {
         create_use_cases_with_info(mock_user_repository, MockUserInfoRepository::default())
     }
 
-    fn create_use_cases_with_info(mock_user_repository: MockUserRepository, mock_user_info_repository: MockUserInfoRepository) -> UserUseCasesImpl {
+    fn create_use_cases_with_info(mock_user_repository: MockUserRepository, mock_user_info_repository: MockUserInfoRepository) -> UserServiceImpl {
         let repository_service = Arc::new(RepositoryService {
             repository: Arc::new(MockRepository),
             user_repository: Arc::new(mock_user_repository),
             user_info_repository: Arc::new(mock_user_info_repository),
         });
-        UserUseCasesImpl::new(repository_service)
+        UserServiceImpl::new(repository_service)
     }
 
     // ===================

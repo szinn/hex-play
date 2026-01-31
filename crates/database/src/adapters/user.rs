@@ -20,7 +20,7 @@ impl From<users::Model> for User {
             token: model.token,
             name: model.name,
             email: model.email,
-            age: 0, // Age is stored in user_info table, populated by use case layer
+            age: 0, // Age is stored in user_info table, populated by service layer
             created_at: model.created_at.with_timezone(&Utc),
             updated_at: model.updated_at.with_timezone(&Utc),
         }
@@ -145,6 +145,7 @@ impl UserRepository for UserRepositoryAdapter {
 
         Ok(prelude::Users::find_by_id(id).one(transaction).await.map_err(handle_dberr)?.map(Into::into))
     }
+
     #[tracing::instrument(level = "trace", skip(self, transaction))]
     async fn find_by_email(&self, transaction: &dyn Transaction, email: &str) -> Result<Option<User>, Error> {
         let transaction = TransactionImpl::get_db_transaction(transaction)?;

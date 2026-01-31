@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - _(config)_ Migrate config .renovaterc.json5 ([#3](https://github.com/szinn/rust-arch/issues/3))
 - _(core)_ Improve module organization and add NewUser model
 - _(core)_ Extend transaction macros to support multiple services
+- _(core)_ Restructure modules - extract repositories from services
+- _(core,api)_ Move UserService to services module
 - _(core,database)_ Improve delete_user with optimistic locking
 - _(core,database)_ Add unit tests for user use cases and adapter
 - _(core,database)_ Rename UserService to UserRepository

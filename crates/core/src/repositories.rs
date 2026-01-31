@@ -8,6 +8,19 @@ pub use user_info::UserInfoRepository;
 
 use crate::Error;
 
+pub struct RepositoryService {
+    pub repository: Arc<dyn Repository>,
+    pub user_repository: Arc<dyn UserRepository>,
+    pub user_info_repository: Arc<dyn UserInfoRepository>,
+}
+
+#[async_trait::async_trait]
+pub trait Transaction: Any + Send + Sync {
+    fn as_any(&self) -> &dyn Any;
+    async fn commit(self: Box<Self>) -> Result<(), Error>;
+    async fn rollback(self: Box<Self>) -> Result<(), Error>;
+}
+
 /// Execute an async operation within a read-write transaction.
 ///
 /// Clones one or more repositories, begins a transaction, executes the body,
@@ -67,19 +80,6 @@ pub trait Repository: Send + Sync {
     async fn begin(&self) -> Result<Box<dyn Transaction>, Error>;
     async fn begin_read_only(&self) -> Result<Box<dyn Transaction>, Error>;
     async fn close(&self) -> Result<(), Error>;
-}
-
-#[async_trait::async_trait]
-pub trait Transaction: Any + Send + Sync {
-    fn as_any(&self) -> &dyn Any;
-    async fn commit(self: Box<Self>) -> Result<(), Error>;
-    async fn rollback(self: Box<Self>) -> Result<(), Error>;
-}
-
-pub struct RepositoryService {
-    pub repository: Arc<dyn Repository>,
-    pub user_repository: Arc<dyn UserRepository>,
-    pub user_info_repository: Arc<dyn UserInfoRepository>,
 }
 
 /// Execute a closure within a transaction, automatically committing on success
