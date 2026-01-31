@@ -68,20 +68,35 @@ commit_preprocessors = [
 ]
 # regex for parsing and grouping commits
 commit_parsers = [
-    { message = "^feat", group = "Features" },
-    { message = "^fix", group = "Bug Fixes" },
-    { message = "^doc", group = "Documentation" },
-    { message = "^perf", group = "Performance" },
-    { message = "^refactor", group = "Refactor" },
-    { message = "^style", group = "Styling" },
-    { message = "^test", group = "Testing" },
+    # Section Ordering
+    # - 01 Features
+    # - 02 Bug Fixes
+    # - 03 Performance
+    # - 04 Security
+    # - 05 Documentation
+    # - 06 Miscellaneous Tasks
+    #      - Refactor
+    #      - Style
+    #      - Test
+    #      - CI
+    #      - Revert
+    #      - Dependency Update
+    { message = "^feat!?\\(deps\\)", group = "<!-- 06 -->Miscellaneous Tasks" },
+    { message = "^feat", group = "<!-- 01 -->Features" },
+    { message = "^fix\\(deps\\)", group = "<!-- 06 -->Miscellaneous Tasks" },
+    { message = "^chore\\(deps\\)", group = "<!-- 06 -->Miscellaneous Tasks" },
+    { message = "^fix", group = "<!-- 02 -->Bug Fixes" },
+    { message = "^doc", group = "<!-- 05 -->Documentation" },
+    { message = "^perf", group = "<!-- 03 -->Performance" },
+    { message = "^refactor", group = "<!-- 06 -->Miscellaneous Tasks" },
+    { message = "^style", group = "<!-- 06 -->Miscellaneous Tasks" },
+    { message = "^test", group = "<!-- 06 -->Miscellaneous Tasks" },
     { message = "^chore\\(release\\): prepare for", skip = true },
-    { message = "^chore\\(deps\\)", skip = true },
     { message = "^chore\\(pr\\)", skip = true },
     { message = "^chore\\(pull\\)", skip = true },
-    { message = "^chore|ci", group = "Miscellaneous Tasks" },
-    { body = ".*security", group = "Security" },
-    { message = "^revert", group = "Revert" },
+    { message = "^chore|ci", group = "<!-- 06 -->Miscellaneous Tasks" },
+    { body = ".*security", group = "<!-- 04 -->Security" },
+    { message = "^revert", group = "<!-- 06 -->Miscellaneous Tasks" },
     { message = "^ignore", skip = true },
     # { message = "^fix\\(deps\\): update ", skip = true },
     # { message = "^feat\\(deps\\): update ", skip = true },

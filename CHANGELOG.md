@@ -7,10 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
-### Features
+### <!-- 01 -->Features
 
 - _(core)_ Add transaction helper functions with auto commit/rollback
-- _(deps)_ Update renovatebot/github-action action to v40.3.6
 - Config framework
 - Command arguments framework
 - Database framework
@@ -20,18 +19,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CoreServices framework
 - Api framework
 - Adding an api route to core services
+- User CRUD api
 
-### Miscellaneous Tasks
+### <!-- 05 -->Documentation
+
+- Update changelog formatting
+
+### <!-- 06 -->Miscellaneous Tasks
 
 - _(config)_ Migrate config .renovaterc.json5 ([#3](https://github.com/szinn/rust-arch/issues/3))
-- Update to sea-orm 2.0.0-rc
-- Add renovate support
-- Add renovate support
-
-### Refactor
-
 - _(core)_ Improve module organization and add NewUser model
-
-### Styling
-
+- _(deps)_ Update renovatebot/github-action action to v40.3.6
+- _(deps)_ Update rust crate clap to 4.5.56 ([#4](https://github.com/szinn/rust-arch/issues/4))
+- Update to sea-orm 2.0.0-rc
 - Formatting
+- Add renovate support
+- Add renovate support
