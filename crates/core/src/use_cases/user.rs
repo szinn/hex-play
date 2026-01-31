@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use uuid::Uuid;
+
 use crate::{
     Error, RepositoryError,
     models::{NewUser, User},
@@ -14,6 +16,7 @@ pub trait UserUseCases: Send + Sync {
     async fn list_users(&self, start_id: Option<i64>, page_size: Option<u64>) -> Result<Vec<User>, Error>;
     async fn delete_user(&self, id: i64) -> Result<User, Error>;
     async fn find_by_id(&self, id: i64) -> Result<Option<User>, Error>;
+    async fn find_by_token(&self, token: Uuid) -> Result<Option<User>, Error>;
 }
 
 pub(crate) struct UserUseCasesImpl {
@@ -30,17 +33,17 @@ impl UserUseCasesImpl {
 impl UserUseCases for UserUseCasesImpl {
     #[tracing::instrument(level = "trace", skip(self, user))]
     async fn add_user(&self, user: NewUser) -> Result<User, Error> {
-        with_transaction!(self, user_service, |tx| user_service.add_user(tx, user).await )
+        with_transaction!(self, user_service, |tx| user_service.add_user(tx, user).await)
     }
 
     #[tracing::instrument(level = "trace", skip(self, user))]
     async fn update_user(&self, user: User) -> Result<User, Error> {
-        with_transaction!(self, user_service, |tx| user_service.update_user(tx, user).await )
+        with_transaction!(self, user_service, |tx| user_service.update_user(tx, user).await)
     }
 
     #[tracing::instrument(level = "trace", skip(self))]
     async fn list_users(&self, start_id: Option<i64>, page_size: Option<u64>) -> Result<Vec<User>, Error> {
-        with_read_only_transaction!(self, user_service, |tx| user_service.list_users(tx, start_id, page_size).await )
+        with_read_only_transaction!(self, user_service, |tx| user_service.list_users(tx, start_id, page_size).await)
     }
 
     #[tracing::instrument(level = "trace", skip(self))]
@@ -56,7 +59,12 @@ impl UserUseCases for UserUseCasesImpl {
 
     #[tracing::instrument(level = "trace", skip(self))]
     async fn find_by_id(&self, id: i64) -> Result<Option<User>, Error> {
-        with_read_only_transaction!(self, user_service, |tx| user_service.find_by_id(tx, id).await )
+        with_read_only_transaction!(self, user_service, |tx| user_service.find_by_id(tx, id).await)
+    }
+
+    #[tracing::instrument(level = "trace", skip(self))]
+    async fn find_by_token(&self, token: Uuid) -> Result<Option<User>, Error> {
+        with_read_only_transaction!(self, user_service, |tx| user_service.find_by_token(tx, token).await)
     }
 }
 
@@ -66,6 +74,8 @@ mod tests {
         any::Any,
         sync::{Arc, Mutex},
     };
+
+    use uuid::Uuid;
 
     use super::{UserUseCases, UserUseCasesImpl};
     use crate::{
@@ -123,6 +133,7 @@ mod tests {
         update_user_result: Mutex<Option<Result<User, Error>>>,
         delete_user_result: Mutex<Option<Result<User, Error>>>,
         find_by_id_result: Mutex<Option<Result<Option<User>, Error>>>,
+        find_by_token_result: Mutex<Option<Result<Option<User>, Error>>>,
         list_users_result: Mutex<Option<Result<Vec<User>, Error>>>,
     }
 
@@ -149,6 +160,11 @@ mod tests {
 
         fn with_list_users_result(self, result: Result<Vec<User>, Error>) -> Self {
             *self.list_users_result.lock().unwrap() = Some(result);
+            self
+        }
+
+        fn with_find_by_token_result(self, result: Result<Option<User>, Error>) -> Self {
+            *self.find_by_token_result.lock().unwrap() = Some(result);
             self
         }
     }
@@ -197,6 +213,14 @@ mod tests {
 
         async fn find_by_email(&self, _tx: &dyn Transaction, _email: &str) -> Result<Option<User>, Error> {
             Err(Error::Message("Not implemented in mock".into()))
+        }
+
+        async fn find_by_token(&self, _tx: &dyn Transaction, _token: Uuid) -> Result<Option<User>, Error> {
+            self.find_by_token_result
+                .lock()
+                .unwrap()
+                .take()
+                .unwrap_or_else(|| Err(Error::Message("No mock result configured".into())))
         }
     }
 
@@ -369,5 +393,35 @@ mod tests {
 
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), Error::RepositoryError(RepositoryError::NotFound)));
+    }
+
+    // ===================
+    // Tests: find_by_token
+    // ===================
+    #[tokio::test]
+    async fn test_find_by_token_found() {
+        let expected_user = User::test(1, "John Doe", "john@example.com");
+        let mock_service = MockUserService::default().with_find_by_token_result(Ok(Some(expected_user.clone())));
+        let use_cases = create_use_cases(mock_service);
+
+        let result = use_cases.find_by_token(expected_user.token).await;
+
+        assert!(result.is_ok());
+        let user = result.unwrap();
+        assert!(user.is_some());
+        let user = user.unwrap();
+        assert_eq!(user.id, 1);
+        assert_eq!(user.name, "John Doe");
+    }
+
+    #[tokio::test]
+    async fn test_find_by_token_not_found() {
+        let mock_service = MockUserService::default().with_find_by_token_result(Ok(None));
+        let use_cases = create_use_cases(mock_service);
+
+        let result = use_cases.find_by_token(Uuid::new_v4()).await;
+
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
     }
 }

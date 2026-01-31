@@ -30,6 +30,7 @@ thiserror = "2.0.18"
 tokio-graceful-shutdown = "0.19.2"
 tower = "0.5.3"
 tracing-log = "0.2.0"
+uuid = { version = "1", features = ["v4", "serde"] }
 
 [workspace.dependencies.clap]
 version = "4.5.56"

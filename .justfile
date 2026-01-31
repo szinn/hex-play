@@ -88,7 +88,7 @@ create-database:
 
 [doc('Redo all migrations')]
 migrations:
-  DATABASE_URL=$HPLAY__DATABASE__DATABASE_URL cargo run --bin migrator -- down
+  DATABASE_URL=$HPLAY__DATABASE__DATABASE_URL cargo run --bin migrator -- down -n 100
   DATABASE_URL=$HPLAY__DATABASE__DATABASE_URL cargo run --bin migrator -- up
 
 [doc('Create entity classes')]

@@ -11,6 +11,7 @@ use hex_play_core::{
     services::CoreServices,
 };
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use crate::http::error::Error;
 
@@ -20,6 +21,7 @@ pub(crate) fn get_routes(core_services: Arc<CoreServices>) -> Router {
             "/api/v1/user",
             Router::new()
                 .route("/", post(create_user).get(list_users))
+                .route("/token/{token}", get(get_user_by_token))
                 .route("/{id}", get(get_user).patch(update_user).delete(delete_user)),
         )
         .with_state(core_services)
@@ -43,6 +45,7 @@ impl From<CreateUserRequest> for NewUser {
 #[derive(Serialize, Debug)]
 struct UserResponse {
     id: i64,
+    token: Uuid,
     name: String,
     email: String,
 }
@@ -51,6 +54,7 @@ impl From<User> for UserResponse {
     fn from(user: User) -> Self {
         Self {
             id: user.id,
+            token: user.token,
             name: user.name,
             email: user.email,
         }
@@ -94,6 +98,12 @@ async fn list_users(Query(opts): Query<FilterOptions>, State(core_services): Sta
 #[tracing::instrument(level = "trace", skip(core_services))]
 async fn get_user(Path(id): Path<i64>, State(core_services): State<Arc<CoreServices>>) -> Result<Json<UserResponse>, Error> {
     let user = core_services.user.find_by_id(id).await.map_err(Error::Core)?.ok_or(Error::NotFound)?;
+    Ok(Json(user.into()))
+}
+
+#[tracing::instrument(level = "trace", skip(core_services))]
+async fn get_user_by_token(Path(token): Path<Uuid>, State(core_services): State<Arc<CoreServices>>) -> Result<Json<UserResponse>, Error> {
+    let user = core_services.user.find_by_token(token).await.map_err(Error::Core)?.ok_or(Error::NotFound)?;
     Ok(Json(user.into()))
 }
 
@@ -144,6 +154,7 @@ mod tests {
         use_cases::UserUseCases,
     };
     use tower::ServiceExt;
+    use uuid::Uuid;
 
     use super::get_routes;
 
@@ -156,6 +167,7 @@ mod tests {
         update_user_result: Mutex<Option<Result<User, Error>>>,
         delete_user_result: Mutex<Option<Result<User, Error>>>,
         find_by_id_result: Mutex<Option<Result<Option<User>, Error>>>,
+        find_by_token_result: Mutex<Option<Result<Option<User>, Error>>>,
         list_users_result: Mutex<Option<Result<Vec<User>, Error>>>,
     }
 
@@ -182,6 +194,11 @@ mod tests {
 
         fn with_list_users_result(self, result: Result<Vec<User>, Error>) -> Self {
             *self.list_users_result.lock().unwrap() = Some(result);
+            self
+        }
+
+        fn with_find_by_token_result(self, result: Result<Option<User>, Error>) -> Self {
+            *self.find_by_token_result.lock().unwrap() = Some(result);
             self
         }
     }
@@ -222,6 +239,14 @@ mod tests {
 
         async fn find_by_id(&self, _id: i64) -> Result<Option<User>, Error> {
             self.find_by_id_result
+                .lock()
+                .unwrap()
+                .take()
+                .unwrap_or_else(|| Err(Error::Message("No mock result configured".into())))
+        }
+
+        async fn find_by_token(&self, _token: Uuid) -> Result<Option<User>, Error> {
+            self.find_by_token_result
                 .lock()
                 .unwrap()
                 .take()
@@ -595,5 +620,73 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    // ===================
+    // Tests: GET /api/v1/user/token/{token} (get_user_by_token)
+    // ===================
+    #[tokio::test]
+    async fn test_get_user_by_token_success() {
+        let user = User::test(1, "John Doe", "john@example.com");
+        let token = user.token;
+        let mock = MockUserUseCases::default().with_find_by_token_result(Ok(Some(user)));
+        let app = create_test_app(mock);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri(format!("/api/v1/user/token/{token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = body_to_string(response.into_body()).await;
+        assert!(body.contains(r#""id":1"#));
+        assert!(body.contains(r#""name":"John Doe""#));
+        assert!(body.contains(&format!(r#""token":"{token}""#)));
+    }
+
+    #[tokio::test]
+    async fn test_get_user_by_token_not_found() {
+        let mock = MockUserUseCases::default().with_find_by_token_result(Ok(None));
+        let app = create_test_app(mock);
+
+        let token = Uuid::new_v4();
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri(format!("/api/v1/user/token/{token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_get_user_by_token_invalid_uuid() {
+        let mock = MockUserUseCases::default();
+        let app = create_test_app(mock);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/api/v1/user/token/not-a-uuid")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     }
 }

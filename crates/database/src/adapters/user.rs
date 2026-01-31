@@ -4,7 +4,7 @@ use hex_play_core::{
     models::{NewUser, User},
     services::{Transaction, UserService},
 };
-use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, ModelTrait, QueryFilter, QueryOrder, QuerySelect};
+use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, ModelTrait, QueryFilter, QueryOrder, QuerySelect, prelude::Uuid};
 
 use crate::{
     entities::{prelude, users},
@@ -17,6 +17,7 @@ impl From<users::Model> for User {
         Self {
             id: model.id,
             version: model.version,
+            token: model.token,
             name: model.name,
             email: model.email,
             created_at: model.created_at.with_timezone(&Utc),
@@ -153,13 +154,25 @@ impl UserService for UserServiceAdapter {
             .map_err(handle_dberr)?
             .map(Into::into))
     }
+
+    #[tracing::instrument(level = "trace", skip(self, transaction))]
+    async fn find_by_token(&self, transaction: &dyn Transaction, token: Uuid) -> Result<Option<User>, Error> {
+        let transaction = TransactionImpl::get_db_transaction(transaction)?;
+
+        Ok(prelude::Users::find()
+            .filter(users::Column::Token.eq(token))
+            .one(transaction)
+            .await
+            .map_err(handle_dberr)?
+            .map(Into::into))
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use chrono::{TimeZone, Utc};
     use hex_play_core::{Error, RepositoryError, models::NewUser, services::UserService};
-    use sea_orm::{DatabaseBackend, MockDatabase, MockExecResult};
+    use sea_orm::{DatabaseBackend, MockDatabase, MockExecResult, prelude::Uuid};
 
     use super::UserServiceAdapter;
     use crate::{entities::users, test_support::create_mock_repository_service_with_db};
@@ -167,6 +180,7 @@ mod tests {
     fn create_test_user_model(id: i64, name: &str, email: &str) -> users::Model {
         users::Model {
             id,
+            token: Uuid::new_v4(),
             name: name.to_string(),
             email: email.to_string(),
             version: 0,
@@ -507,5 +521,40 @@ mod tests {
 
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), Error::RepositoryError(RepositoryError::Conflict)));
+    }
+
+    // ===================
+    // Tests: find_by_token
+    // ===================
+    #[tokio::test]
+    async fn test_find_by_token_found() {
+        let test_user = create_test_user_model(1, "John Doe", "john@example.com");
+        let token = test_user.token;
+        let mock_db = MockDatabase::new(DatabaseBackend::Postgres).append_query_results([[test_user]]);
+
+        let repo_service = create_mock_repository_service_with_db(mock_db);
+        let tx = repo_service.repository.begin().await.unwrap();
+
+        let result = repo_service.user_service.find_by_token(&*tx, token).await;
+
+        assert!(result.is_ok());
+        let user = result.unwrap();
+        assert!(user.is_some());
+        let user = user.unwrap();
+        assert_eq!(user.id, 1);
+        assert_eq!(user.token, token);
+    }
+
+    #[tokio::test]
+    async fn test_find_by_token_not_found() {
+        let mock_db = MockDatabase::new(DatabaseBackend::Postgres).append_query_results([Vec::<users::Model>::new()]);
+
+        let repo_service = create_mock_repository_service_with_db(mock_db);
+        let tx = repo_service.repository.begin().await.unwrap();
+
+        let result = repo_service.user_service.find_by_token(&*tx, Uuid::new_v4()).await;
+
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
     }
 }

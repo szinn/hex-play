@@ -1,4 +1,4 @@
-# HEX-PLAY Changelog
+# Changelog
 
 All notable changes to this project will be documented in this file.
 
@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### <!-- 06 -->Miscellaneous Tasks
 
 - _(api)_ Add HTTP endpoint tests for user routes
+- _(api,core,database)_ Improve code quality and reduce duplication
 - _(config)_ Migrate config .renovaterc.json5 ([#3](https://github.com/szinn/rust-arch/issues/3))
 - _(core)_ Improve module organization and add NewUser model
 - _(core,database)_ Improve delete_user with optimistic locking

@@ -80,3 +80,6 @@ Secrets should be encrypted with `sops` and never committed.
   - Use `anyhow` for ad-hoc errors in the binary crate (`cli`)
 - **Secrets:**
   - Secrets should be encrypted with `sops`, never commit secrets
+- **Dependencies:**
+  - All crate dependencies must be defined in the root `Cargo.toml` under `[workspace.dependencies]`
+  - Individual crates reference them with `crate-name.workspace = true`
