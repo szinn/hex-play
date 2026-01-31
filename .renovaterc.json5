@@ -39,7 +39,7 @@
       addLabels: ["dependency"],
       commitMessageTopic: "Crate {{depName}}",
       semanticCommitScope: "deps",
-      rangeStrategy: "bump"
+      rangeStrategy: "replace"
     },
     // Docker: labels and commit message
     {
