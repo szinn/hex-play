@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - _(api,core)_ Adding an api route to core services
 - _(api,core)_ User CRUD api
 - _(api,core,database)_ Implement user CRUD use cases
+- _(api,core,database)_ Add UUID token field to users
 - _(cli)_ Config framework
 - _(cli)_ Command arguments framework
 - _(core)_ Add transaction helper functions with auto commit/rollback
