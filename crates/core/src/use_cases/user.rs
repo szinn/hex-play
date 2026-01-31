@@ -5,7 +5,8 @@ use uuid::Uuid;
 use crate::{
     Error, RepositoryError,
     models::{NewUser, User},
-    services::{RepositoryService, read_only_transaction, transaction},
+    services::RepositoryService,
+    with_read_only_transaction, with_transaction,
 };
 
 #[async_trait::async_trait]
@@ -32,121 +33,87 @@ impl UserUseCasesImpl {
 impl UserUseCases for UserUseCasesImpl {
     #[tracing::instrument(level = "trace", skip(self, user))]
     async fn add_user(&self, user: NewUser) -> Result<User, Error> {
-        let user_service = self.repository_service.user_service.clone();
-        let user_info_service = self.repository_service.user_info_service.clone();
         let age = user.age;
 
-        transaction(&*self.repository_service.repository, |tx| {
-            Box::pin(async move {
-                let mut user = user_service.add_user(tx, user).await?;
-                user_info_service.add_info(tx, user.token, age).await?;
-                user.age = age;
-                Ok(user)
-            })
+        with_transaction!(self, user_service, user_info_service, |tx| {
+            let mut user = user_service.add_user(tx, user).await?;
+            user_info_service.add_info(tx, user.token, age).await?;
+            user.age = age;
+            Ok(user)
         })
-        .await
     }
 
     #[tracing::instrument(level = "trace", skip(self, user))]
     async fn update_user(&self, user: User) -> Result<User, Error> {
-        let user_service = self.repository_service.user_service.clone();
-        let user_info_service = self.repository_service.user_info_service.clone();
         let age = user.age;
 
-        transaction(&*self.repository_service.repository, |tx| {
-            Box::pin(async move {
-                let mut updated_user = user_service.update_user(tx, user).await?;
-                user_info_service.update_info(tx, updated_user.token, age).await?;
-                updated_user.age = age;
-                Ok(updated_user)
-            })
+        with_transaction!(self, user_service, user_info_service, |tx| {
+            let mut updated_user = user_service.update_user(tx, user).await?;
+            user_info_service.update_info(tx, updated_user.token, age).await?;
+            updated_user.age = age;
+            Ok(updated_user)
         })
-        .await
     }
 
     #[tracing::instrument(level = "trace", skip(self))]
     async fn list_users(&self, start_id: Option<i64>, page_size: Option<u64>) -> Result<Vec<User>, Error> {
-        let user_service = self.repository_service.user_service.clone();
-        let user_info_service = self.repository_service.user_info_service.clone();
+        with_read_only_transaction!(self, user_service, user_info_service, |tx| {
+            let mut users = user_service.list_users(tx, start_id, page_size).await?;
+            let tokens: Vec<_> = users.iter().map(|u| u.token).collect();
+            let infos = user_info_service.find_by_tokens(tx, &tokens).await?;
 
-        read_only_transaction(&*self.repository_service.repository, |tx| {
-            Box::pin(async move {
-                let mut users = user_service.list_users(tx, start_id, page_size).await?;
-                let tokens: Vec<_> = users.iter().map(|u| u.token).collect();
-                let infos = user_info_service.find_by_tokens(tx, &tokens).await?;
+            let info_map: std::collections::HashMap<_, _> = infos.into_iter().map(|i| (i.user_token, i.age)).collect();
 
-                let info_map: std::collections::HashMap<_, _> = infos.into_iter().map(|i| (i.user_token, i.age)).collect();
-
-                for user in &mut users {
-                    if let Some(&age) = info_map.get(&user.token) {
-                        user.age = age;
-                    }
+            for user in &mut users {
+                if let Some(&age) = info_map.get(&user.token) {
+                    user.age = age;
                 }
-                Ok(users)
-            })
+            }
+            Ok(users)
         })
-        .await
     }
 
     #[tracing::instrument(level = "trace", skip(self))]
     async fn delete_user(&self, id: i64) -> Result<User, Error> {
-        let user_service = self.repository_service.user_service.clone();
-        let user_info_service = self.repository_service.user_info_service.clone();
+        with_transaction!(self, user_service, user_info_service, |tx| {
+            let mut user = user_service
+                .find_by_id(tx, id)
+                .await?
+                .ok_or(Error::RepositoryError(RepositoryError::NotFound))?;
 
-        transaction(&*self.repository_service.repository, |tx| {
-            Box::pin(async move {
-                let mut user = user_service
-                    .find_by_id(tx, id)
-                    .await?
-                    .ok_or(Error::RepositoryError(RepositoryError::NotFound))?;
+            // Get age before deletion (cascade will delete user_info)
+            if let Some(info) = user_info_service.find_by_token(tx, user.token).await? {
+                user.age = info.age;
+            }
 
-                // Get age before deletion (cascade will delete user_info)
-                if let Some(info) = user_info_service.find_by_token(tx, user.token).await? {
-                    user.age = info.age;
-                }
-
-                user_service.delete_user(tx, user).await
-            })
+            user_service.delete_user(tx, user).await
         })
-        .await
     }
 
     #[tracing::instrument(level = "trace", skip(self))]
     async fn find_by_id(&self, id: i64) -> Result<Option<User>, Error> {
-        let user_service = self.repository_service.user_service.clone();
-        let user_info_service = self.repository_service.user_info_service.clone();
-
-        read_only_transaction(&*self.repository_service.repository, |tx| {
-            Box::pin(async move {
-                let Some(mut user) = user_service.find_by_id(tx, id).await? else {
-                    return Ok(None);
-                };
-                if let Some(info) = user_info_service.find_by_token(tx, user.token).await? {
-                    user.age = info.age;
-                }
-                Ok(Some(user))
-            })
+        with_read_only_transaction!(self, user_service, user_info_service, |tx| {
+            let Some(mut user) = user_service.find_by_id(tx, id).await? else {
+                return Ok(None);
+            };
+            if let Some(info) = user_info_service.find_by_token(tx, user.token).await? {
+                user.age = info.age;
+            }
+            Ok(Some(user))
         })
-        .await
     }
 
     #[tracing::instrument(level = "trace", skip(self))]
     async fn find_by_token(&self, token: Uuid) -> Result<Option<User>, Error> {
-        let user_service = self.repository_service.user_service.clone();
-        let user_info_service = self.repository_service.user_info_service.clone();
-
-        read_only_transaction(&*self.repository_service.repository, |tx| {
-            Box::pin(async move {
-                let Some(mut user) = user_service.find_by_token(tx, token).await? else {
-                    return Ok(None);
-                };
-                if let Some(info) = user_info_service.find_by_token(tx, user.token).await? {
-                    user.age = info.age;
-                }
-                Ok(Some(user))
-            })
+        with_read_only_transaction!(self, user_service, user_info_service, |tx| {
+            let Some(mut user) = user_service.find_by_token(tx, token).await? else {
+                return Ok(None);
+            };
+            if let Some(info) = user_info_service.find_by_token(tx, user.token).await? {
+                user.age = info.age;
+            }
+            Ok(Some(user))
         })
-        .await
     }
 }
 

@@ -7,38 +7,54 @@ use crate::{
 
 /// Execute an async operation within a read-write transaction.
 ///
-/// Clones the user_service, begins a transaction, executes the body,
+/// Clones one or more services, begins a transaction, executes the body,
 /// and commits on success or rolls back on error.
 ///
-/// # Example
+/// # Examples
 /// ```ignore
+/// // Single service
 /// with_transaction!(self, user_service, |tx| {
 ///     user_service.add_user(tx, user).await
+/// })
+///
+/// // Multiple services
+/// with_transaction!(self, user_service, user_info_service, |tx| {
+///     let user = user_service.add_user(tx, user).await?;
+///     user_info_service.add_info(tx, user.token, age).await?;
+///     Ok(user)
 /// })
 /// ```
 #[macro_export]
 macro_rules! with_transaction {
-    ($self:expr, $service:ident, |$tx:ident| $body:expr) => {{
-        let $service = $self.repository_service.$service.clone();
+    ($self:expr, $($service:ident),+ , |$tx:ident| $body:expr) => {{
+        $(let $service = $self.repository_service.$service.clone();)+
         $crate::services::transaction(&*$self.repository_service.repository, |$tx| Box::pin(async move { $body })).await
     }};
 }
 
 /// Execute an async operation within a read-only transaction.
 ///
-/// Clones the user_service and executes the body within a read-only
+/// Clones one or more services and executes the body within a read-only
 /// transaction.
 ///
-/// # Example
+/// # Examples
 /// ```ignore
+/// // Single service
 /// with_read_only_transaction!(self, user_service, |tx| {
 ///     user_service.find_by_id(tx, id).await
+/// })
+///
+/// // Multiple services
+/// with_read_only_transaction!(self, user_service, user_info_service, |tx| {
+///     let user = user_service.find_by_id(tx, id).await?;
+///     let info = user_info_service.find_by_token(tx, user.token).await?;
+///     Ok((user, info))
 /// })
 /// ```
 #[macro_export]
 macro_rules! with_read_only_transaction {
-    ($self:expr, $service:ident, |$tx:ident| $body:expr) => {{
-        let $service = $self.repository_service.$service.clone();
+    ($self:expr, $($service:ident),+ , |$tx:ident| $body:expr) => {{
+        $(let $service = $self.repository_service.$service.clone();)+
         $crate::services::read_only_transaction(&*$self.repository_service.repository, |$tx| Box::pin(async move { $body })).await
     }};
 }

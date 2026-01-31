@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - _(api,core)_ User CRUD api
 - _(api,core,database)_ Implement user CRUD use cases
 - _(api,core,database)_ Add UUID token field to users
+- _(api,core,database)_ Add age field to User with user_info storage
 - _(cli)_ Config framework
 - _(cli)_ Command arguments framework
 - _(core)_ Add transaction helper functions with auto commit/rollback
@@ -29,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - _(api,core,database)_ Improve code quality and reduce duplication
 - _(config)_ Migrate config .renovaterc.json5 ([#3](https://github.com/szinn/rust-arch/issues/3))
 - _(core)_ Improve module organization and add NewUser model
+- _(core)_ Extend transaction macros to support multiple services
 - _(core,database)_ Improve delete_user with optimistic locking
 - _(core,database)_ Add unit tests for user use cases and adapter
 - _(core,database,api)_ Use idiomatic combinators and flatten module structure
