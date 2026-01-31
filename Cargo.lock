@@ -1105,6 +1105,7 @@ dependencies = [
  "chrono",
  "derive_builder",
  "thiserror",
+ "tokio",
  "tracing",
 ]
 
@@ -1121,6 +1122,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+ "tokio",
  "tracing",
 ]
 

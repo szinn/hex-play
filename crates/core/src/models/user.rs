@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use derive_builder::Builder;
 
-#[derive(Debug, Default, Builder)]
+#[derive(Debug, Default, Clone, Builder)]
 pub struct User {
     #[builder(default = "0")]
     pub id: i64,
