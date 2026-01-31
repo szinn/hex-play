@@ -1,6 +1,9 @@
 use std::{any::Any, future::Future, pin::Pin, sync::Arc};
 
-use crate::{Error, services::UserService};
+use crate::{
+    Error,
+    services::{UserInfoService, UserService},
+};
 
 /// Execute an async operation within a read-write transaction.
 ///
@@ -57,6 +60,7 @@ pub trait Transaction: Any + Send + Sync {
 pub struct RepositoryService {
     pub repository: Arc<dyn Repository>,
     pub user_service: Arc<dyn UserService>,
+    pub user_info_service: Arc<dyn UserInfoService>,
 }
 
 /// Execute a closure within a transaction, automatically committing on success

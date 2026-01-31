@@ -20,6 +20,7 @@ impl From<users::Model> for User {
             token: model.token,
             name: model.name,
             email: model.email,
+            age: 0, // Age is stored in user_info table, populated by use case layer
             created_at: model.created_at.with_timezone(&Utc),
             updated_at: model.updated_at.with_timezone(&Utc),
         }
@@ -202,6 +203,7 @@ mod tests {
         let new_user = NewUser {
             name: "John Doe".into(),
             email: "john@example.com".into(),
+            age: 30,
         };
 
         let result = repo_service.user_service.add_user(&*tx, new_user).await;

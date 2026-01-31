@@ -31,6 +31,8 @@ pub(crate) fn get_routes(core_services: Arc<CoreServices>) -> Router {
 struct CreateUserRequest {
     name: String,
     email: String,
+    #[serde(default)]
+    age: i16,
 }
 
 impl From<CreateUserRequest> for NewUser {
@@ -38,6 +40,7 @@ impl From<CreateUserRequest> for NewUser {
         Self {
             name: req.name,
             email: req.email,
+            age: req.age,
         }
     }
 }
@@ -48,6 +51,7 @@ struct UserResponse {
     token: Uuid,
     name: String,
     email: String,
+    age: i16,
 }
 
 impl From<User> for UserResponse {
@@ -57,6 +61,7 @@ impl From<User> for UserResponse {
             token: user.token,
             name: user.name,
             email: user.email,
+            age: user.age,
         }
     }
 }
@@ -111,6 +116,7 @@ async fn get_user_by_token(Path(token): Path<Uuid>, State(core_services): State<
 struct UpdateUserRequest {
     name: Option<String>,
     email: Option<String>,
+    age: Option<i16>,
 }
 
 #[tracing::instrument(level = "trace", skip(core_services))]
@@ -126,6 +132,9 @@ async fn update_user(
     }
     if let Some(email) = request.email {
         user.email = email;
+    }
+    if let Some(age) = request.age {
+        user.age = age;
     }
 
     let user = core_services.user.update_user(user).await.map_err(Error::Core)?;
@@ -272,6 +281,33 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_create_user_success() {
+        let user = User::test_with_age(1, "John Doe", "john@example.com", 30);
+        let mock = MockUserUseCases::default().with_add_user_result(Ok(user));
+        let app = create_test_app(mock);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/user")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"name":"John Doe","email":"john@example.com","age":30}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::CREATED);
+
+        let body = body_to_string(response.into_body()).await;
+        assert!(body.contains(r#""id":1"#));
+        assert!(body.contains(r#""name":"John Doe""#));
+        assert!(body.contains(r#""email":"john@example.com""#));
+        assert!(body.contains(r#""age":30"#));
+    }
+
+    #[tokio::test]
+    async fn test_create_user_without_age_defaults_to_zero() {
         let user = User::test(1, "John Doe", "john@example.com");
         let mock = MockUserUseCases::default().with_add_user_result(Ok(user));
         let app = create_test_app(mock);
@@ -291,9 +327,7 @@ mod tests {
         assert_eq!(response.status(), StatusCode::CREATED);
 
         let body = body_to_string(response.into_body()).await;
-        assert!(body.contains(r#""id":1"#));
-        assert!(body.contains(r#""name":"John Doe""#));
-        assert!(body.contains(r#""email":"john@example.com""#));
+        assert!(body.contains(r#""age":0"#));
     }
 
     #[tokio::test]
@@ -362,7 +396,10 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_list_users_success() {
-        let users = vec![User::test(1, "John Doe", "john@example.com"), User::test(2, "Jane Doe", "jane@example.com")];
+        let users = vec![
+            User::test_with_age(1, "John Doe", "john@example.com", 30),
+            User::test_with_age(2, "Jane Doe", "jane@example.com", 25),
+        ];
         let mock = MockUserUseCases::default().with_list_users_result(Ok(users));
         let app = create_test_app(mock);
 
@@ -377,6 +414,8 @@ mod tests {
         assert!(body.contains(r#""users""#));
         assert!(body.contains(r#""name":"John Doe""#));
         assert!(body.contains(r#""name":"Jane Doe""#));
+        assert!(body.contains(r#""age":30"#));
+        assert!(body.contains(r#""age":25"#));
     }
 
     #[tokio::test]
@@ -446,7 +485,7 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_get_user_success() {
-        let user = User::test(1, "John Doe", "john@example.com");
+        let user = User::test_with_age(1, "John Doe", "john@example.com", 30);
         let mock = MockUserUseCases::default().with_find_by_id_result(Ok(Some(user)));
         let app = create_test_app(mock);
 
@@ -460,6 +499,7 @@ mod tests {
         let body = body_to_string(response.into_body()).await;
         assert!(body.contains(r#""id":1"#));
         assert!(body.contains(r#""name":"John Doe""#));
+        assert!(body.contains(r#""age":30"#));
     }
 
     #[tokio::test]
@@ -493,8 +533,8 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_update_user_success() {
-        let existing = User::test(1, "John Doe", "john@example.com");
-        let updated = User::test(1, "John Updated", "john@example.com");
+        let existing = User::test_with_age(1, "John Doe", "john@example.com", 30);
+        let updated = User::test_with_age(1, "John Updated", "john@example.com", 30);
         let mock = MockUserUseCases::default()
             .with_find_by_id_result(Ok(Some(existing)))
             .with_update_user_result(Ok(updated));
@@ -516,12 +556,13 @@ mod tests {
 
         let body = body_to_string(response.into_body()).await;
         assert!(body.contains(r#""name":"John Updated""#));
+        assert!(body.contains(r#""age":30"#));
     }
 
     #[tokio::test]
     async fn test_update_user_partial_email() {
-        let existing = User::test(1, "John Doe", "john@example.com");
-        let updated = User::test(1, "John Doe", "john.new@example.com");
+        let existing = User::test_with_age(1, "John Doe", "john@example.com", 25);
+        let updated = User::test_with_age(1, "John Doe", "john.new@example.com", 25);
         let mock = MockUserUseCases::default()
             .with_find_by_id_result(Ok(Some(existing)))
             .with_update_user_result(Ok(updated));
@@ -543,6 +584,35 @@ mod tests {
 
         let body = body_to_string(response.into_body()).await;
         assert!(body.contains(r#""email":"john.new@example.com""#));
+        assert!(body.contains(r#""age":25"#));
+    }
+
+    #[tokio::test]
+    async fn test_update_user_age() {
+        let existing = User::test_with_age(1, "John Doe", "john@example.com", 30);
+        let updated = User::test_with_age(1, "John Doe", "john@example.com", 31);
+        let mock = MockUserUseCases::default()
+            .with_find_by_id_result(Ok(Some(existing)))
+            .with_update_user_result(Ok(updated));
+        let app = create_test_app(mock);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("PATCH")
+                    .uri("/api/v1/user/1")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"age":31}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = body_to_string(response.into_body()).await;
+        assert!(body.contains(r#""name":"John Doe""#));
+        assert!(body.contains(r#""age":31"#));
     }
 
     #[tokio::test]
@@ -593,7 +663,7 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_delete_user_success() {
-        let user = User::test(1, "John Doe", "john@example.com");
+        let user = User::test_with_age(1, "John Doe", "john@example.com", 30);
         let mock = MockUserUseCases::default().with_delete_user_result(Ok(user));
         let app = create_test_app(mock);
 
@@ -607,6 +677,7 @@ mod tests {
         let body = body_to_string(response.into_body()).await;
         assert!(body.contains(r#""id":1"#));
         assert!(body.contains(r#""name":"John Doe""#));
+        assert!(body.contains(r#""age":30"#));
     }
 
     #[tokio::test]
@@ -627,7 +698,7 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_get_user_by_token_success() {
-        let user = User::test(1, "John Doe", "john@example.com");
+        let user = User::test_with_age(1, "John Doe", "john@example.com", 30);
         let token = user.token;
         let mock = MockUserUseCases::default().with_find_by_token_result(Ok(Some(user)));
         let app = create_test_app(mock);
@@ -649,6 +720,7 @@ mod tests {
         assert!(body.contains(r#""id":1"#));
         assert!(body.contains(r#""name":"John Doe""#));
         assert!(body.contains(&format!(r#""token":"{token}""#)));
+        assert!(body.contains(r#""age":30"#));
     }
 
     #[tokio::test]

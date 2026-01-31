@@ -2,4 +2,5 @@
 
 pub mod prelude;
 
+pub mod user_info;
 pub mod users;

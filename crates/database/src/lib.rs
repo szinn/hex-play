@@ -3,7 +3,7 @@ use std::sync::Arc;
 use hex_play_core::{Error, services::RepositoryService};
 use sea_orm::DatabaseConnection;
 
-use crate::adapters::user::UserServiceAdapter;
+use crate::adapters::{user::UserServiceAdapter, user_info::UserInfoServiceAdapter};
 
 pub mod error;
 pub mod migration;
@@ -26,10 +26,12 @@ pub async fn create_repository_service(database: DatabaseConnection) -> Result<A
 
     let repository = RepositoryImpl::new(database);
     let user_service = UserServiceAdapter::new();
+    let user_info_service = UserInfoServiceAdapter::new();
 
     let repository_service = RepositoryService {
         repository: Arc::new(repository),
         user_service: Arc::new(user_service),
+        user_info_service: Arc::new(user_info_service),
     };
 
     Ok(Arc::new(repository_service))
@@ -42,7 +44,10 @@ pub mod test_support {
     use hex_play_core::services::RepositoryService;
     use sea_orm::{DatabaseBackend, DatabaseConnection, MockDatabase};
 
-    use crate::{RepositoryImpl, adapters::user::UserServiceAdapter};
+    use crate::{
+        RepositoryImpl,
+        adapters::{user::UserServiceAdapter, user_info::UserInfoServiceAdapter},
+    };
 
     /// Creates a RepositoryService with a mock database for testing.
     pub fn create_mock_repository_service() -> Arc<RepositoryService> {
@@ -60,10 +65,12 @@ pub mod test_support {
     fn create_repository_service_from_connection(database: DatabaseConnection) -> Arc<RepositoryService> {
         let repository = RepositoryImpl::new(database);
         let user_service = UserServiceAdapter::new();
+        let user_info_service = UserInfoServiceAdapter::new();
 
         Arc::new(RepositoryService {
             repository: Arc::new(repository),
             user_service: Arc::new(user_service),
+            user_info_service: Arc::new(user_info_service),
         })
     }
 }
