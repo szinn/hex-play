@@ -26,6 +26,8 @@ impl IntoResponse for Error {
                     RepositoryError::Message(msg) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Internal server error - {msg}")),
                     RepositoryError::Any(msg) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Internal server error - {msg}")),
                 },
+                CoreError::InvalidId(id) => (StatusCode::BAD_REQUEST, format!("Invalid ID: {id}")),
+                CoreError::InvalidPageSize(size) => (StatusCode::BAD_REQUEST, format!("Invalid page size: {size}")),
                 CoreError::Message(msg) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Internal server error - {msg}")),
                 CoreError::Any(msg) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Internal server error - {msg}")),
             },

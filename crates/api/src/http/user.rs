@@ -61,8 +61,8 @@ pub(crate) mod routes {
 
     #[derive(Deserialize, Debug, Default)]
     pub struct FilterOptions {
-        pub start_id: Option<usize>,
-        pub page_size: Option<usize>,
+        pub start_id: Option<i64>,
+        pub page_size: Option<u64>,
     }
 
     #[derive(Serialize, Debug)]

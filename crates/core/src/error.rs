@@ -3,6 +3,12 @@ pub enum Error {
     #[error("{0}")]
     Message(String),
 
+    #[error("Invalid ID: {0}")]
+    InvalidId(i64),
+
+    #[error("Invalid page size: {0}")]
+    InvalidPageSize(u64),
+
     #[error(transparent)]
     RepositoryError(#[from] RepositoryError),
 
