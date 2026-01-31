@@ -15,6 +15,7 @@ just install-tools
 - Install tools: `just install-tools`
 - Build: `just build`
 - Format code: `just fmt`
+- Update rust crate dependencies: `just deps`
 - Run clippy: `just clippy`
 - Run tests: `just test`
 - Run insta tests: `just insta`
@@ -70,7 +71,7 @@ Secrets should be encrypted with `sops` and never committed.
 ## Conventions
 
 - **Commits:**
-  - Follow conventional commits with crate-based scopes: `type(scope): description`
+  - Follow conventional commits with crate-based scopes sorted: `type(scope): description`
   - Valid scopes: `api`, `cli`, `core`, `database` (match crate names)
   - Use `jj` (jujutsu) for version control, not `git`
   - Key commands: `jj commit`, `jj describe`, `jj new`, `jj log`, `jj status`

@@ -32,6 +32,10 @@ build:
 clippy:
   cargo +nightly clippy --workspace --all-targets
 
+[doc('Update rust crate dependencies')]
+deps:
+  cargo upgrade
+
 [doc('Run all tests using nextest')]
 test:
   cargo nextest run --workspace

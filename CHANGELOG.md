@@ -36,3 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - _(renovate)_ Add renovate support
 - _(renovate)_ Add renovate support
 - Formatting
+- Configure Renovate to update Cargo.toml version constraints
+- Configure Renovate to update Cargo.toml version constraints
+- Upgrade crate dependencies

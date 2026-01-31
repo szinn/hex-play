@@ -32,7 +32,7 @@ tower = "0.5.3"
 tracing-log = "0.2.0"
 
 [workspace.dependencies.clap]
-version = "4.5.55"
+version = "4.5.56"
 features = ["cargo", "derive", "env"]
 
 [workspace.dependencies.hyper]
@@ -44,7 +44,7 @@ version = "0.1.19"
 features = ["tokio", "server-auto", "http1"]
 
 [workspace.dependencies.insta]
-version = "1.46.1"
+version = "1.46.2"
 features = ["filters"]
 
 [workspace.dependencies.rust-embed]
