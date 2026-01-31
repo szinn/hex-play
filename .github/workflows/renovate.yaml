@@ -20,8 +20,6 @@ on:
   schedule:
     - cron: "0 22 * * *"
   push:
-    branches:
-      - main
     paths:
       - .renovaterc.json5
       - .github/workflows/renovate.yaml
