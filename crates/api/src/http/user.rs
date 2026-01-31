@@ -139,7 +139,7 @@ mod tests {
     };
     use hex_play_core::{
         Error, RepositoryError,
-        models::{NewUser, User, UserBuilder},
+        models::{NewUser, User},
         services::CoreServices,
         use_cases::UserUseCases,
     };
@@ -232,18 +232,14 @@ mod tests {
     // ===================
     // Test Helpers
     // ===================
-    fn create_test_user(id: i64, name: &str, email: &str) -> User {
-        UserBuilder::default().id(id).version(0).name(name.into()).email(email.into()).build().unwrap()
-    }
-
     fn create_test_app(mock: MockUserUseCases) -> Router {
         let core_services = Arc::new(CoreServices { user: Arc::new(mock) });
         get_routes(core_services)
     }
 
     async fn body_to_string(body: Body) -> String {
-        let bytes = axum::body::to_bytes(body, usize::MAX).await.unwrap();
-        String::from_utf8(bytes.to_vec()).unwrap()
+        let bytes = axum::body::to_bytes(body, usize::MAX).await.expect("failed to read response body");
+        String::from_utf8(bytes.to_vec()).expect("response body must be valid UTF-8")
     }
 
     // ===================
@@ -251,7 +247,7 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_create_user_success() {
-        let user = create_test_user(1, "John Doe", "john@example.com");
+        let user = User::test(1, "John Doe", "john@example.com");
         let mock = MockUserUseCases::default().with_add_user_result(Ok(user));
         let app = create_test_app(mock);
 
@@ -341,10 +337,7 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_list_users_success() {
-        let users = vec![
-            create_test_user(1, "John Doe", "john@example.com"),
-            create_test_user(2, "Jane Doe", "jane@example.com"),
-        ];
+        let users = vec![User::test(1, "John Doe", "john@example.com"), User::test(2, "Jane Doe", "jane@example.com")];
         let mock = MockUserUseCases::default().with_list_users_result(Ok(users));
         let app = create_test_app(mock);
 
@@ -379,7 +372,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_list_users_with_pagination() {
-        let users = vec![create_test_user(5, "User Five", "five@example.com")];
+        let users = vec![User::test(5, "User Five", "five@example.com")];
         let mock = MockUserUseCases::default().with_list_users_result(Ok(users));
         let app = create_test_app(mock);
 
@@ -428,7 +421,7 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_get_user_success() {
-        let user = create_test_user(1, "John Doe", "john@example.com");
+        let user = User::test(1, "John Doe", "john@example.com");
         let mock = MockUserUseCases::default().with_find_by_id_result(Ok(Some(user)));
         let app = create_test_app(mock);
 
@@ -475,8 +468,8 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_update_user_success() {
-        let existing = create_test_user(1, "John Doe", "john@example.com");
-        let updated = create_test_user(1, "John Updated", "john@example.com");
+        let existing = User::test(1, "John Doe", "john@example.com");
+        let updated = User::test(1, "John Updated", "john@example.com");
         let mock = MockUserUseCases::default()
             .with_find_by_id_result(Ok(Some(existing)))
             .with_update_user_result(Ok(updated));
@@ -502,8 +495,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_update_user_partial_email() {
-        let existing = create_test_user(1, "John Doe", "john@example.com");
-        let updated = create_test_user(1, "John Doe", "john.new@example.com");
+        let existing = User::test(1, "John Doe", "john@example.com");
+        let updated = User::test(1, "John Doe", "john.new@example.com");
         let mock = MockUserUseCases::default()
             .with_find_by_id_result(Ok(Some(existing)))
             .with_update_user_result(Ok(updated));
@@ -549,7 +542,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_update_user_conflict() {
-        let existing = create_test_user(1, "John Doe", "john@example.com");
+        let existing = User::test(1, "John Doe", "john@example.com");
         let mock = MockUserUseCases::default()
             .with_find_by_id_result(Ok(Some(existing)))
             .with_update_user_result(Err(Error::RepositoryError(RepositoryError::Conflict)));
@@ -575,7 +568,7 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_delete_user_success() {
-        let user = create_test_user(1, "John Doe", "john@example.com");
+        let user = User::test(1, "John Doe", "john@example.com");
         let mock = MockUserUseCases::default().with_delete_user_result(Ok(user));
         let app = create_test_app(mock);
 

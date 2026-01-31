@@ -3,7 +3,8 @@ use std::sync::Arc;
 use crate::{
     Error, RepositoryError,
     models::{NewUser, User},
-    services::{RepositoryService, read_only_transaction, transaction},
+    services::RepositoryService,
+    with_read_only_transaction, with_transaction,
 };
 
 #[async_trait::async_trait]
@@ -29,53 +30,33 @@ impl UserUseCasesImpl {
 impl UserUseCases for UserUseCasesImpl {
     #[tracing::instrument(level = "trace", skip(self, user))]
     async fn add_user(&self, user: NewUser) -> Result<User, Error> {
-        let user_service = self.repository_service.user_service.clone();
-        transaction(&*self.repository_service.repository, |tx| {
-            Box::pin(async move { user_service.add_user(tx, user).await })
-        })
-        .await
+        with_transaction!(self, user_service, |tx| user_service.add_user(tx, user).await )
     }
 
     #[tracing::instrument(level = "trace", skip(self, user))]
     async fn update_user(&self, user: User) -> Result<User, Error> {
-        let user_service = self.repository_service.user_service.clone();
-        transaction(&*self.repository_service.repository, |tx| {
-            Box::pin(async move { user_service.update_user(tx, user).await })
-        })
-        .await
+        with_transaction!(self, user_service, |tx| user_service.update_user(tx, user).await )
     }
 
     #[tracing::instrument(level = "trace", skip(self))]
     async fn list_users(&self, start_id: Option<i64>, page_size: Option<u64>) -> Result<Vec<User>, Error> {
-        let user_service = self.repository_service.user_service.clone();
-        read_only_transaction(&*self.repository_service.repository, |tx| {
-            Box::pin(async move { user_service.list_users(tx, start_id, page_size).await })
-        })
-        .await
+        with_read_only_transaction!(self, user_service, |tx| user_service.list_users(tx, start_id, page_size).await )
     }
 
     #[tracing::instrument(level = "trace", skip(self))]
     async fn delete_user(&self, id: i64) -> Result<User, Error> {
-        let user_service = self.repository_service.user_service.clone();
-        transaction(&*self.repository_service.repository, |tx| {
-            Box::pin(async move {
-                let user = user_service
-                    .find_by_id(tx, id)
-                    .await?
-                    .ok_or(Error::RepositoryError(RepositoryError::NotFound))?;
-                user_service.delete_user(tx, user).await
-            })
+        with_transaction!(self, user_service, |tx| {
+            let user = user_service
+                .find_by_id(tx, id)
+                .await?
+                .ok_or(Error::RepositoryError(RepositoryError::NotFound))?;
+            user_service.delete_user(tx, user).await
         })
-        .await
     }
 
     #[tracing::instrument(level = "trace", skip(self))]
     async fn find_by_id(&self, id: i64) -> Result<Option<User>, Error> {
-        let user_service = self.repository_service.user_service.clone();
-        read_only_transaction(&*self.repository_service.repository, |tx| {
-            Box::pin(async move { user_service.find_by_id(tx, id).await })
-        })
-        .await
+        with_read_only_transaction!(self, user_service, |tx| user_service.find_by_id(tx, id).await )
     }
 }
 
@@ -89,7 +70,7 @@ mod tests {
     use super::{UserUseCases, UserUseCasesImpl};
     use crate::{
         Error, RepositoryError,
-        models::{NewUser, User, UserBuilder},
+        models::{NewUser, User},
         services::{Repository, RepositoryService, Transaction, UserService},
     };
 
@@ -222,10 +203,6 @@ mod tests {
     // ===================
     // Test Helpers
     // ===================
-    fn create_test_user(id: i64, name: &str, email: &str) -> User {
-        UserBuilder::default().id(id).version(0).name(name.into()).email(email.into()).build().unwrap()
-    }
-
     fn create_use_cases(mock_user_service: MockUserService) -> UserUseCasesImpl {
         let repository_service = Arc::new(RepositoryService {
             repository: Arc::new(MockRepository),
@@ -239,7 +216,7 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_add_user_success() {
-        let expected_user = create_test_user(1, "John Doe", "john@example.com");
+        let expected_user = User::test(1, "John Doe", "john@example.com");
         let mock_service = MockUserService::default().with_add_user_result(Ok(expected_user.clone()));
         let use_cases = create_use_cases(mock_service);
 
@@ -278,11 +255,11 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_update_user_success() {
-        let updated_user = create_test_user(1, "John Updated", "john.updated@example.com");
+        let updated_user = User::test(1, "John Updated", "john.updated@example.com");
         let mock_service = MockUserService::default().with_update_user_result(Ok(updated_user.clone()));
         let use_cases = create_use_cases(mock_service);
 
-        let user = create_test_user(1, "John Doe", "john@example.com");
+        let user = User::test(1, "John Doe", "john@example.com");
 
         let result = use_cases.update_user(user).await;
 
@@ -297,7 +274,7 @@ mod tests {
         let mock_service = MockUserService::default().with_update_user_result(Err(Error::RepositoryError(RepositoryError::NotFound)));
         let use_cases = create_use_cases(mock_service);
 
-        let user = create_test_user(999, "Nonexistent", "none@example.com");
+        let user = User::test(999, "Nonexistent", "none@example.com");
 
         let result = use_cases.update_user(user).await;
 
@@ -310,7 +287,7 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_find_by_id_found() {
-        let expected_user = create_test_user(1, "John Doe", "john@example.com");
+        let expected_user = User::test(1, "John Doe", "john@example.com");
         let mock_service = MockUserService::default().with_find_by_id_result(Ok(Some(expected_user.clone())));
         let use_cases = create_use_cases(mock_service);
 
@@ -340,10 +317,7 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_list_users_success() {
-        let users = vec![
-            create_test_user(1, "John Doe", "john@example.com"),
-            create_test_user(2, "Jane Doe", "jane@example.com"),
-        ];
+        let users = vec![User::test(1, "John Doe", "john@example.com"), User::test(2, "Jane Doe", "jane@example.com")];
         let mock_service = MockUserService::default().with_list_users_result(Ok(users));
         let use_cases = create_use_cases(mock_service);
 
@@ -372,7 +346,7 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_delete_user_success() {
-        let user_to_delete = create_test_user(1, "John Doe", "john@example.com");
+        let user_to_delete = User::test(1, "John Doe", "john@example.com");
         let mock_service = MockUserService::default()
             .with_find_by_id_result(Ok(Some(user_to_delete.clone())))
             .with_delete_user_result(Ok(user_to_delete.clone()));

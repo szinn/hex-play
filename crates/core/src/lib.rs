@@ -5,7 +5,7 @@ pub mod use_cases;
 
 use std::sync::Arc;
 
-pub use error::*;
+pub use error::{Error, ErrorKind, RepositoryError};
 
 use crate::services::{CoreServices, RepositoryService};
 

@@ -15,6 +15,21 @@ pub struct User {
     pub updated_at: DateTime<Utc>,
 }
 
+impl User {
+    /// Creates a test user with default timestamps.
+    /// Only available in test builds.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn test(id: i64, name: impl Into<String>, email: impl Into<String>) -> Self {
+        UserBuilder::default()
+            .id(id)
+            .version(0)
+            .name(name.into())
+            .email(email.into())
+            .build()
+            .expect("test user should build successfully")
+    }
+}
+
 #[derive(Debug, Default, Builder)]
 pub struct NewUser {
     pub name: String,

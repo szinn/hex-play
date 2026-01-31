@@ -126,5 +126,5 @@ fn contents(file_data: EmbeddedFile) -> String {
     let contents = file_data.data.as_ref();
     let contents = Vec::from(contents);
 
-    String::from_utf8(contents).unwrap()
+    String::from_utf8(contents).expect("embedded migration files must be valid UTF-8")
 }

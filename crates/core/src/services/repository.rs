@@ -2,6 +2,44 @@ use std::{any::Any, future::Future, pin::Pin, sync::Arc};
 
 use crate::{Error, services::UserService};
 
+/// Execute an async operation within a read-write transaction.
+///
+/// Clones the user_service, begins a transaction, executes the body,
+/// and commits on success or rolls back on error.
+///
+/// # Example
+/// ```ignore
+/// with_transaction!(self, user_service, |tx| {
+///     user_service.add_user(tx, user).await
+/// })
+/// ```
+#[macro_export]
+macro_rules! with_transaction {
+    ($self:expr, $service:ident, |$tx:ident| $body:expr) => {{
+        let $service = $self.repository_service.$service.clone();
+        $crate::services::transaction(&*$self.repository_service.repository, |$tx| Box::pin(async move { $body })).await
+    }};
+}
+
+/// Execute an async operation within a read-only transaction.
+///
+/// Clones the user_service and executes the body within a read-only
+/// transaction.
+///
+/// # Example
+/// ```ignore
+/// with_read_only_transaction!(self, user_service, |tx| {
+///     user_service.find_by_id(tx, id).await
+/// })
+/// ```
+#[macro_export]
+macro_rules! with_read_only_transaction {
+    ($self:expr, $service:ident, |$tx:ident| $body:expr) => {{
+        let $service = $self.repository_service.$service.clone();
+        $crate::services::read_only_transaction(&*$self.repository_service.repository, |$tx| Box::pin(async move { $body })).await
+    }};
+}
+
 #[async_trait::async_trait]
 pub trait Repository: Send + Sync {
     async fn begin(&self) -> Result<Box<dyn Transaction>, Error>;

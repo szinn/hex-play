@@ -102,6 +102,7 @@ impl UserService for UserServiceAdapter {
     #[tracing::instrument(level = "trace", skip(self, transaction))]
     async fn list_users(&self, transaction: &dyn Transaction, start_id: Option<i64>, page_size: Option<u64>) -> Result<Vec<User>, Error> {
         const DEFAULT_PAGE_SIZE: u64 = 50;
+        /// Limit maximum page size to prevent excessively large responses.
         const MAX_PAGE_SIZE: u64 = 50;
 
         if let Some(start_id) = start_id {

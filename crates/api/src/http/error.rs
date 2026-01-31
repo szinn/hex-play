@@ -2,7 +2,7 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use hex_play_core::{Error as CoreError, RepositoryError};
+use hex_play_core::{Error as CoreError, ErrorKind};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -13,24 +13,21 @@ pub enum Error {
     NotFound,
 }
 
+fn status_code_from_error_kind(kind: ErrorKind) -> StatusCode {
+    match kind {
+        ErrorKind::NotFound => StatusCode::NOT_FOUND,
+        ErrorKind::Conflict => StatusCode::CONFLICT,
+        ErrorKind::ValidationError => StatusCode::UNPROCESSABLE_ENTITY,
+        ErrorKind::BadRequest => StatusCode::BAD_REQUEST,
+        ErrorKind::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
+    }
+}
+
 impl IntoResponse for Error {
     fn into_response(self) -> Response {
         let (status, message) = match &self {
-            Error::NotFound => (StatusCode::NOT_FOUND, "Not found".into()),
-            Error::Core(core_error) => match core_error {
-                CoreError::RepositoryError(repo_error) => match repo_error {
-                    RepositoryError::NotFound => (StatusCode::NOT_FOUND, "Not found".into()),
-                    RepositoryError::Conflict => (StatusCode::CONFLICT, "Resource conflict".into()),
-                    RepositoryError::Constraint(msg) => (StatusCode::UNPROCESSABLE_ENTITY, format!("Validation error - {msg}")),
-                    RepositoryError::ReadOnly => (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".into()),
-                    RepositoryError::Message(msg) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Internal server error - {msg}")),
-                    RepositoryError::Any(msg) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Internal server error - {msg}")),
-                },
-                CoreError::InvalidId(id) => (StatusCode::BAD_REQUEST, format!("Invalid ID: {id}")),
-                CoreError::InvalidPageSize(size) => (StatusCode::BAD_REQUEST, format!("Invalid page size: {size}")),
-                CoreError::Message(msg) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Internal server error - {msg}")),
-                CoreError::Any(msg) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Internal server error - {msg}")),
-            },
+            Error::NotFound => (StatusCode::NOT_FOUND, "Not found".to_string()),
+            Error::Core(core_error) => (status_code_from_error_kind(core_error.kind()), core_error.to_string()),
         };
 
         tracing::error!(%status, error = %self, "Request failed");

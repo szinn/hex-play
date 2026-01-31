@@ -25,4 +25,5 @@ thiserror.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
+hex-play-core = { workspace = true, features = ["test-support"] }
 tokio.workspace = true
