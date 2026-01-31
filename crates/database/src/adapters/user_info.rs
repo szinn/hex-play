@@ -2,7 +2,7 @@ use chrono::Utc;
 use hex_play_core::{
     Error,
     models::user_info::UserInfo,
-    services::{Transaction, user_info::UserInfoService},
+    services::{Transaction, user_info::UserInfoRepository},
 };
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, QueryFilter, prelude::Uuid};
 
@@ -24,16 +24,16 @@ impl From<user_info::Model> for UserInfo {
     }
 }
 
-pub struct UserInfoServiceAdapter;
+pub struct UserInfoRepositoryAdapter;
 
-impl UserInfoServiceAdapter {
+impl UserInfoRepositoryAdapter {
     pub(crate) fn new() -> Self {
         Self
     }
 }
 
 #[async_trait::async_trait]
-impl UserInfoService for UserInfoServiceAdapter {
+impl UserInfoRepository for UserInfoRepositoryAdapter {
     #[tracing::instrument(level = "trace", skip(self, transaction))]
     async fn add_info(&self, transaction: &dyn Transaction, user_token: Uuid, age: i16) -> Result<UserInfo, Error> {
         let transaction = TransactionImpl::get_db_transaction(transaction)?;

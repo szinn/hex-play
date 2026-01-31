@@ -7,7 +7,7 @@ use crate::{
 };
 
 #[async_trait::async_trait]
-pub trait UserService: Send + Sync {
+pub trait UserRepository: Send + Sync {
     async fn add_user(&self, transaction: &dyn Transaction, user: NewUser) -> Result<User, Error>;
     async fn update_user(&self, transaction: &dyn Transaction, user: User) -> Result<User, Error>;
     async fn delete_user(&self, transaction: &dyn Transaction, user: User) -> Result<User, Error>;

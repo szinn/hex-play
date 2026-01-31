@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - _(core)_ Extend transaction macros to support multiple services
 - _(core,database)_ Improve delete_user with optimistic locking
 - _(core,database)_ Add unit tests for user use cases and adapter
+- _(core,database)_ Rename UserService to UserRepository
 - _(core,database,api)_ Use idiomatic combinators and flatten module structure
 - _(deps)_ Update to sea-orm 2.0.0-rc
 - _(deps)_ Update renovatebot/github-action action to v40.3.6

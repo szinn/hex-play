@@ -35,9 +35,9 @@ impl UserUseCases for UserUseCasesImpl {
     async fn add_user(&self, user: NewUser) -> Result<User, Error> {
         let age = user.age;
 
-        with_transaction!(self, user_service, user_info_service, |tx| {
-            let mut user = user_service.add_user(tx, user).await?;
-            user_info_service.add_info(tx, user.token, age).await?;
+        with_transaction!(self, user_repository, user_info_repository, |tx| {
+            let mut user = user_repository.add_user(tx, user).await?;
+            user_info_repository.add_info(tx, user.token, age).await?;
             user.age = age;
             Ok(user)
         })
@@ -47,9 +47,9 @@ impl UserUseCases for UserUseCasesImpl {
     async fn update_user(&self, user: User) -> Result<User, Error> {
         let age = user.age;
 
-        with_transaction!(self, user_service, user_info_service, |tx| {
-            let mut updated_user = user_service.update_user(tx, user).await?;
-            user_info_service.update_info(tx, updated_user.token, age).await?;
+        with_transaction!(self, user_repository, user_info_repository, |tx| {
+            let mut updated_user = user_repository.update_user(tx, user).await?;
+            user_info_repository.update_info(tx, updated_user.token, age).await?;
             updated_user.age = age;
             Ok(updated_user)
         })
@@ -57,10 +57,10 @@ impl UserUseCases for UserUseCasesImpl {
 
     #[tracing::instrument(level = "trace", skip(self))]
     async fn list_users(&self, start_id: Option<i64>, page_size: Option<u64>) -> Result<Vec<User>, Error> {
-        with_read_only_transaction!(self, user_service, user_info_service, |tx| {
-            let mut users = user_service.list_users(tx, start_id, page_size).await?;
+        with_read_only_transaction!(self, user_repository, user_info_repository, |tx| {
+            let mut users = user_repository.list_users(tx, start_id, page_size).await?;
             let tokens: Vec<_> = users.iter().map(|u| u.token).collect();
-            let infos = user_info_service.find_by_tokens(tx, &tokens).await?;
+            let infos = user_info_repository.find_by_tokens(tx, &tokens).await?;
 
             let info_map: std::collections::HashMap<_, _> = infos.into_iter().map(|i| (i.user_token, i.age)).collect();
 
@@ -75,28 +75,28 @@ impl UserUseCases for UserUseCasesImpl {
 
     #[tracing::instrument(level = "trace", skip(self))]
     async fn delete_user(&self, id: i64) -> Result<User, Error> {
-        with_transaction!(self, user_service, user_info_service, |tx| {
-            let mut user = user_service
+        with_transaction!(self, user_repository, user_info_repository, |tx| {
+            let mut user = user_repository
                 .find_by_id(tx, id)
                 .await?
                 .ok_or(Error::RepositoryError(RepositoryError::NotFound))?;
 
             // Get age before deletion (cascade will delete user_info)
-            if let Some(info) = user_info_service.find_by_token(tx, user.token).await? {
+            if let Some(info) = user_info_repository.find_by_token(tx, user.token).await? {
                 user.age = info.age;
             }
 
-            user_service.delete_user(tx, user).await
+            user_repository.delete_user(tx, user).await
         })
     }
 
     #[tracing::instrument(level = "trace", skip(self))]
     async fn find_by_id(&self, id: i64) -> Result<Option<User>, Error> {
-        with_read_only_transaction!(self, user_service, user_info_service, |tx| {
-            let Some(mut user) = user_service.find_by_id(tx, id).await? else {
+        with_read_only_transaction!(self, user_repository, user_info_repository, |tx| {
+            let Some(mut user) = user_repository.find_by_id(tx, id).await? else {
                 return Ok(None);
             };
-            if let Some(info) = user_info_service.find_by_token(tx, user.token).await? {
+            if let Some(info) = user_info_repository.find_by_token(tx, user.token).await? {
                 user.age = info.age;
             }
             Ok(Some(user))
@@ -105,11 +105,11 @@ impl UserUseCases for UserUseCasesImpl {
 
     #[tracing::instrument(level = "trace", skip(self))]
     async fn find_by_token(&self, token: Uuid) -> Result<Option<User>, Error> {
-        with_read_only_transaction!(self, user_service, user_info_service, |tx| {
-            let Some(mut user) = user_service.find_by_token(tx, token).await? else {
+        with_read_only_transaction!(self, user_repository, user_info_repository, |tx| {
+            let Some(mut user) = user_repository.find_by_token(tx, token).await? else {
                 return Ok(None);
             };
-            if let Some(info) = user_info_service.find_by_token(tx, user.token).await? {
+            if let Some(info) = user_info_repository.find_by_token(tx, user.token).await? {
                 user.age = info.age;
             }
             Ok(Some(user))
@@ -130,7 +130,7 @@ mod tests {
     use crate::{
         Error, RepositoryError,
         models::{NewUser, User, user_info::UserInfo},
-        services::{Repository, RepositoryService, Transaction, UserInfoService, UserService},
+        services::{Repository, RepositoryService, Transaction, UserInfoRepository, UserRepository},
     };
 
     // ===================
@@ -174,10 +174,10 @@ mod tests {
     }
 
     // ===================
-    // Mock UserService
+    // Mock UserRepository
     // ===================
     #[derive(Default)]
-    struct MockUserService {
+    struct MockUserRepository {
         add_user_result: Mutex<Option<Result<User, Error>>>,
         update_user_result: Mutex<Option<Result<User, Error>>>,
         delete_user_result: Mutex<Option<Result<User, Error>>>,
@@ -186,7 +186,7 @@ mod tests {
         list_users_result: Mutex<Option<Result<Vec<User>, Error>>>,
     }
 
-    impl MockUserService {
+    impl MockUserRepository {
         fn with_add_user_result(self, result: Result<User, Error>) -> Self {
             *self.add_user_result.lock().unwrap() = Some(result);
             self
@@ -219,7 +219,7 @@ mod tests {
     }
 
     #[async_trait::async_trait]
-    impl UserService for MockUserService {
+    impl UserRepository for MockUserRepository {
         async fn add_user(&self, _tx: &dyn Transaction, _user: NewUser) -> Result<User, Error> {
             self.add_user_result
                 .lock()
@@ -274,17 +274,17 @@ mod tests {
     }
 
     // ===================
-    // Mock UserInfoService
+    // Mock UserInfoRepository
     // ===================
     #[derive(Default)]
-    struct MockUserInfoService {
+    struct MockUserInfoRepository {
         add_info_result: Mutex<Option<Result<UserInfo, Error>>>,
         update_info_result: Mutex<Option<Result<UserInfo, Error>>>,
         find_by_token_result: Mutex<Option<Result<Option<UserInfo>, Error>>>,
         find_by_tokens_result: Mutex<Option<Result<Vec<UserInfo>, Error>>>,
     }
 
-    impl MockUserInfoService {
+    impl MockUserInfoRepository {
         fn with_add_info_result(self, result: Result<UserInfo, Error>) -> Self {
             *self.add_info_result.lock().unwrap() = Some(result);
             self
@@ -307,7 +307,7 @@ mod tests {
     }
 
     #[async_trait::async_trait]
-    impl UserInfoService for MockUserInfoService {
+    impl UserInfoRepository for MockUserInfoRepository {
         async fn add_info(&self, _tx: &dyn Transaction, _user_token: Uuid, _age: i16) -> Result<UserInfo, Error> {
             self.add_info_result.lock().unwrap().take().unwrap_or_else(|| Ok(UserInfo::default()))
         }
@@ -328,15 +328,15 @@ mod tests {
     // ===================
     // Test Helpers
     // ===================
-    fn create_use_cases(mock_user_service: MockUserService) -> UserUseCasesImpl {
-        create_use_cases_with_info(mock_user_service, MockUserInfoService::default())
+    fn create_use_cases(mock_user_repository: MockUserRepository) -> UserUseCasesImpl {
+        create_use_cases_with_info(mock_user_repository, MockUserInfoRepository::default())
     }
 
-    fn create_use_cases_with_info(mock_user_service: MockUserService, mock_user_info_service: MockUserInfoService) -> UserUseCasesImpl {
+    fn create_use_cases_with_info(mock_user_repository: MockUserRepository, mock_user_info_repository: MockUserInfoRepository) -> UserUseCasesImpl {
         let repository_service = Arc::new(RepositoryService {
             repository: Arc::new(MockRepository),
-            user_service: Arc::new(mock_user_service),
-            user_info_service: Arc::new(mock_user_info_service),
+            user_repository: Arc::new(mock_user_repository),
+            user_info_repository: Arc::new(mock_user_info_repository),
         });
         UserUseCasesImpl::new(repository_service)
     }
@@ -347,14 +347,14 @@ mod tests {
     #[tokio::test]
     async fn test_add_user_success() {
         let expected_user = User::test(1, "John Doe", "john@example.com");
-        let mock_user_service = MockUserService::default().with_add_user_result(Ok(expected_user.clone()));
+        let mock_user_repository = MockUserRepository::default().with_add_user_result(Ok(expected_user.clone()));
         let user_info = UserInfo {
             user_token: expected_user.token,
             age: 30,
             ..Default::default()
         };
-        let mock_user_info_service = MockUserInfoService::default().with_add_info_result(Ok(user_info));
-        let use_cases = create_use_cases_with_info(mock_user_service, mock_user_info_service);
+        let mock_user_info_repository = MockUserInfoRepository::default().with_add_info_result(Ok(user_info));
+        let use_cases = create_use_cases_with_info(mock_user_repository, mock_user_info_repository);
 
         let new_user = NewUser {
             name: "John Doe".into(),
@@ -374,8 +374,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_add_user_propagates_error() {
-        let mock_service = MockUserService::default().with_add_user_result(Err(Error::RepositoryError(RepositoryError::Constraint("duplicate email".into()))));
-        let use_cases = create_use_cases(mock_service);
+        let mock_repository =
+            MockUserRepository::default().with_add_user_result(Err(Error::RepositoryError(RepositoryError::Constraint("duplicate email".into()))));
+        let use_cases = create_use_cases(mock_repository);
 
         let new_user = NewUser {
             name: "John Doe".into(),
@@ -395,14 +396,14 @@ mod tests {
     #[tokio::test]
     async fn test_update_user_success() {
         let updated_user = User::test(1, "John Updated", "john.updated@example.com");
-        let mock_user_service = MockUserService::default().with_update_user_result(Ok(updated_user.clone()));
+        let mock_user_repository = MockUserRepository::default().with_update_user_result(Ok(updated_user.clone()));
         let user_info = UserInfo {
             user_token: updated_user.token,
             age: 35,
             ..Default::default()
         };
-        let mock_user_info_service = MockUserInfoService::default().with_update_info_result(Ok(user_info));
-        let use_cases = create_use_cases_with_info(mock_user_service, mock_user_info_service);
+        let mock_user_info_repository = MockUserInfoRepository::default().with_update_info_result(Ok(user_info));
+        let use_cases = create_use_cases_with_info(mock_user_repository, mock_user_info_repository);
 
         let mut user = User::test(1, "John Doe", "john@example.com");
         user.age = 35;
@@ -418,8 +419,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_update_user_not_found() {
-        let mock_service = MockUserService::default().with_update_user_result(Err(Error::RepositoryError(RepositoryError::NotFound)));
-        let use_cases = create_use_cases(mock_service);
+        let mock_repository = MockUserRepository::default().with_update_user_result(Err(Error::RepositoryError(RepositoryError::NotFound)));
+        let use_cases = create_use_cases(mock_repository);
 
         let user = User::test(999, "Nonexistent", "none@example.com");
 
@@ -435,14 +436,14 @@ mod tests {
     #[tokio::test]
     async fn test_find_by_id_found() {
         let expected_user = User::test(1, "John Doe", "john@example.com");
-        let mock_user_service = MockUserService::default().with_find_by_id_result(Ok(Some(expected_user.clone())));
+        let mock_user_repository = MockUserRepository::default().with_find_by_id_result(Ok(Some(expected_user.clone())));
         let user_info = UserInfo {
             user_token: expected_user.token,
             age: 30,
             ..Default::default()
         };
-        let mock_user_info_service = MockUserInfoService::default().with_find_by_token_result(Ok(Some(user_info)));
-        let use_cases = create_use_cases_with_info(mock_user_service, mock_user_info_service);
+        let mock_user_info_repository = MockUserInfoRepository::default().with_find_by_token_result(Ok(Some(user_info)));
+        let use_cases = create_use_cases_with_info(mock_user_repository, mock_user_info_repository);
 
         let result = use_cases.find_by_id(1).await;
 
@@ -457,8 +458,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_find_by_id_not_found() {
-        let mock_service = MockUserService::default().with_find_by_id_result(Ok(None));
-        let use_cases = create_use_cases(mock_service);
+        let mock_repository = MockUserRepository::default().with_find_by_id_result(Ok(None));
+        let use_cases = create_use_cases(mock_repository);
 
         let result = use_cases.find_by_id(999).await;
 
@@ -474,7 +475,7 @@ mod tests {
         let user1 = User::test(1, "John Doe", "john@example.com");
         let user2 = User::test(2, "Jane Doe", "jane@example.com");
         let users = vec![user1.clone(), user2.clone()];
-        let mock_user_service = MockUserService::default().with_list_users_result(Ok(users));
+        let mock_user_repository = MockUserRepository::default().with_list_users_result(Ok(users));
         let user_infos = vec![
             UserInfo {
                 user_token: user1.token,
@@ -487,8 +488,8 @@ mod tests {
                 ..Default::default()
             },
         ];
-        let mock_user_info_service = MockUserInfoService::default().with_find_by_tokens_result(Ok(user_infos));
-        let use_cases = create_use_cases_with_info(mock_user_service, mock_user_info_service);
+        let mock_user_info_repository = MockUserInfoRepository::default().with_find_by_tokens_result(Ok(user_infos));
+        let use_cases = create_use_cases_with_info(mock_user_repository, mock_user_info_repository);
 
         let result = use_cases.list_users(None, None).await;
 
@@ -503,8 +504,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_list_users_empty() {
-        let mock_service = MockUserService::default().with_list_users_result(Ok(vec![]));
-        let use_cases = create_use_cases(mock_service);
+        let mock_repository = MockUserRepository::default().with_list_users_result(Ok(vec![]));
+        let use_cases = create_use_cases(mock_repository);
 
         let result = use_cases.list_users(None, None).await;
 
@@ -521,7 +522,7 @@ mod tests {
         // The mock delete_user returns a user with age=30 since the use case sets
         // the age before calling delete_user
         let user_to_delete = User::test_with_age(1, "John Doe", "john@example.com", 30);
-        let mock_user_service = MockUserService::default()
+        let mock_user_repository = MockUserRepository::default()
             .with_find_by_id_result(Ok(Some(user_to_find.clone())))
             .with_delete_user_result(Ok(user_to_delete));
         let user_info = UserInfo {
@@ -529,8 +530,8 @@ mod tests {
             age: 30,
             ..Default::default()
         };
-        let mock_user_info_service = MockUserInfoService::default().with_find_by_token_result(Ok(Some(user_info)));
-        let use_cases = create_use_cases_with_info(mock_user_service, mock_user_info_service);
+        let mock_user_info_repository = MockUserInfoRepository::default().with_find_by_token_result(Ok(Some(user_info)));
+        let use_cases = create_use_cases_with_info(mock_user_repository, mock_user_info_repository);
 
         let result = use_cases.delete_user(1).await;
 
@@ -543,8 +544,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_user_not_found() {
-        let mock_service = MockUserService::default().with_find_by_id_result(Ok(None));
-        let use_cases = create_use_cases(mock_service);
+        let mock_repository = MockUserRepository::default().with_find_by_id_result(Ok(None));
+        let use_cases = create_use_cases(mock_repository);
 
         let result = use_cases.delete_user(999).await;
 
@@ -558,14 +559,14 @@ mod tests {
     #[tokio::test]
     async fn test_find_by_token_found() {
         let expected_user = User::test(1, "John Doe", "john@example.com");
-        let mock_user_service = MockUserService::default().with_find_by_token_result(Ok(Some(expected_user.clone())));
+        let mock_user_repository = MockUserRepository::default().with_find_by_token_result(Ok(Some(expected_user.clone())));
         let user_info = UserInfo {
             user_token: expected_user.token,
             age: 30,
             ..Default::default()
         };
-        let mock_user_info_service = MockUserInfoService::default().with_find_by_token_result(Ok(Some(user_info)));
-        let use_cases = create_use_cases_with_info(mock_user_service, mock_user_info_service);
+        let mock_user_info_repository = MockUserInfoRepository::default().with_find_by_token_result(Ok(Some(user_info)));
+        let use_cases = create_use_cases_with_info(mock_user_repository, mock_user_info_repository);
 
         let result = use_cases.find_by_token(expected_user.token).await;
 
@@ -580,8 +581,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_find_by_token_not_found() {
-        let mock_service = MockUserService::default().with_find_by_token_result(Ok(None));
-        let use_cases = create_use_cases(mock_service);
+        let mock_repository = MockUserRepository::default().with_find_by_token_result(Ok(None));
+        let use_cases = create_use_cases(mock_repository);
 
         let result = use_cases.find_by_token(Uuid::new_v4()).await;
 

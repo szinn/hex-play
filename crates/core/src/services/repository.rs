@@ -2,59 +2,59 @@ use std::{any::Any, future::Future, pin::Pin, sync::Arc};
 
 use crate::{
     Error,
-    services::{UserInfoService, UserService},
+    services::{UserInfoRepository, UserRepository},
 };
 
 /// Execute an async operation within a read-write transaction.
 ///
-/// Clones one or more services, begins a transaction, executes the body,
+/// Clones one or more repositories, begins a transaction, executes the body,
 /// and commits on success or rolls back on error.
 ///
 /// # Examples
 /// ```ignore
-/// // Single service
-/// with_transaction!(self, user_service, |tx| {
-///     user_service.add_user(tx, user).await
+/// // Single repository
+/// with_transaction!(self, user_repository, |tx| {
+///     user_repository.add_user(tx, user).await
 /// })
 ///
-/// // Multiple services
-/// with_transaction!(self, user_service, user_info_service, |tx| {
-///     let user = user_service.add_user(tx, user).await?;
-///     user_info_service.add_info(tx, user.token, age).await?;
+/// // Multiple repositories
+/// with_transaction!(self, user_repository, user_info_repository, |tx| {
+///     let user = user_repository.add_user(tx, user).await?;
+///     user_info_repository.add_info(tx, user.token, age).await?;
 ///     Ok(user)
 /// })
 /// ```
 #[macro_export]
 macro_rules! with_transaction {
-    ($self:expr, $($service:ident),+ , |$tx:ident| $body:expr) => {{
-        $(let $service = $self.repository_service.$service.clone();)+
+    ($self:expr, $($repo:ident),+ , |$tx:ident| $body:expr) => {{
+        $(let $repo = $self.repository_service.$repo.clone();)+
         $crate::services::transaction(&*$self.repository_service.repository, |$tx| Box::pin(async move { $body })).await
     }};
 }
 
 /// Execute an async operation within a read-only transaction.
 ///
-/// Clones one or more services and executes the body within a read-only
+/// Clones one or more repositories and executes the body within a read-only
 /// transaction.
 ///
 /// # Examples
 /// ```ignore
-/// // Single service
-/// with_read_only_transaction!(self, user_service, |tx| {
-///     user_service.find_by_id(tx, id).await
+/// // Single repository
+/// with_read_only_transaction!(self, user_repository, |tx| {
+///     user_repository.find_by_id(tx, id).await
 /// })
 ///
-/// // Multiple services
-/// with_read_only_transaction!(self, user_service, user_info_service, |tx| {
-///     let user = user_service.find_by_id(tx, id).await?;
-///     let info = user_info_service.find_by_token(tx, user.token).await?;
+/// // Multiple repositories
+/// with_read_only_transaction!(self, user_repository, user_info_repository, |tx| {
+///     let user = user_repository.find_by_id(tx, id).await?;
+///     let info = user_info_repository.find_by_token(tx, user.token).await?;
 ///     Ok((user, info))
 /// })
 /// ```
 #[macro_export]
 macro_rules! with_read_only_transaction {
-    ($self:expr, $($service:ident),+ , |$tx:ident| $body:expr) => {{
-        $(let $service = $self.repository_service.$service.clone();)+
+    ($self:expr, $($repo:ident),+ , |$tx:ident| $body:expr) => {{
+        $(let $repo = $self.repository_service.$repo.clone();)+
         $crate::services::read_only_transaction(&*$self.repository_service.repository, |$tx| Box::pin(async move { $body })).await
     }};
 }
@@ -75,8 +75,8 @@ pub trait Transaction: Any + Send + Sync {
 
 pub struct RepositoryService {
     pub repository: Arc<dyn Repository>,
-    pub user_service: Arc<dyn UserService>,
-    pub user_info_service: Arc<dyn UserInfoService>,
+    pub user_repository: Arc<dyn UserRepository>,
+    pub user_info_repository: Arc<dyn UserInfoRepository>,
 }
 
 /// Execute a closure within a transaction, automatically committing on success

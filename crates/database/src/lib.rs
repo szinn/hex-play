@@ -3,7 +3,7 @@ use std::sync::Arc;
 use hex_play_core::{Error, services::RepositoryService};
 use sea_orm::DatabaseConnection;
 
-use crate::adapters::{user::UserServiceAdapter, user_info::UserInfoServiceAdapter};
+use crate::adapters::{user::UserRepositoryAdapter, user_info::UserInfoRepositoryAdapter};
 
 pub mod error;
 pub mod migration;
@@ -25,13 +25,13 @@ pub async fn create_repository_service(database: DatabaseConnection) -> Result<A
     apply_migrations(&database).await?;
 
     let repository = RepositoryImpl::new(database);
-    let user_service = UserServiceAdapter::new();
-    let user_info_service = UserInfoServiceAdapter::new();
+    let user_repository = UserRepositoryAdapter::new();
+    let user_info_repository = UserInfoRepositoryAdapter::new();
 
     let repository_service = RepositoryService {
         repository: Arc::new(repository),
-        user_service: Arc::new(user_service),
-        user_info_service: Arc::new(user_info_service),
+        user_repository: Arc::new(user_repository),
+        user_info_repository: Arc::new(user_info_repository),
     };
 
     Ok(Arc::new(repository_service))
@@ -46,7 +46,7 @@ pub mod test_support {
 
     use crate::{
         RepositoryImpl,
-        adapters::{user::UserServiceAdapter, user_info::UserInfoServiceAdapter},
+        adapters::{user::UserRepositoryAdapter, user_info::UserInfoRepositoryAdapter},
     };
 
     /// Creates a RepositoryService with a mock database for testing.
@@ -64,13 +64,13 @@ pub mod test_support {
 
     fn create_repository_service_from_connection(database: DatabaseConnection) -> Arc<RepositoryService> {
         let repository = RepositoryImpl::new(database);
-        let user_service = UserServiceAdapter::new();
-        let user_info_service = UserInfoServiceAdapter::new();
+        let user_repository = UserRepositoryAdapter::new();
+        let user_info_repository = UserInfoRepositoryAdapter::new();
 
         Arc::new(RepositoryService {
             repository: Arc::new(repository),
-            user_service: Arc::new(user_service),
-            user_info_service: Arc::new(user_info_service),
+            user_repository: Arc::new(user_repository),
+            user_info_repository: Arc::new(user_info_repository),
         })
     }
 }

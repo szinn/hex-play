@@ -2,7 +2,7 @@ use chrono::Utc;
 use hex_play_core::{
     Error, RepositoryError,
     models::{NewUser, User},
-    services::{Transaction, UserService},
+    services::{Transaction, UserRepository},
 };
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, ModelTrait, QueryFilter, QueryOrder, QuerySelect, prelude::Uuid};
 
@@ -27,16 +27,16 @@ impl From<users::Model> for User {
     }
 }
 
-pub struct UserServiceAdapter;
+pub struct UserRepositoryAdapter;
 
-impl UserServiceAdapter {
+impl UserRepositoryAdapter {
     pub(crate) fn new() -> Self {
         Self
     }
 }
 
 #[async_trait::async_trait]
-impl UserService for UserServiceAdapter {
+impl UserRepository for UserRepositoryAdapter {
     #[tracing::instrument(level = "trace", skip(self, transaction))]
     async fn add_user(&self, transaction: &dyn Transaction, user: NewUser) -> Result<User, Error> {
         let transaction = TransactionImpl::get_db_transaction(transaction)?;
@@ -172,10 +172,10 @@ impl UserService for UserServiceAdapter {
 #[cfg(test)]
 mod tests {
     use chrono::{TimeZone, Utc};
-    use hex_play_core::{Error, RepositoryError, models::NewUser, services::UserService};
+    use hex_play_core::{Error, RepositoryError, models::NewUser, services::UserRepository};
     use sea_orm::{DatabaseBackend, MockDatabase, MockExecResult, prelude::Uuid};
 
-    use super::UserServiceAdapter;
+    use super::UserRepositoryAdapter;
     use crate::{entities::users, test_support::create_mock_repository_service_with_db};
 
     fn create_test_user_model(id: i64, name: &str, email: &str) -> users::Model {
@@ -206,7 +206,7 @@ mod tests {
             age: 30,
         };
 
-        let result = repo_service.user_service.add_user(&*tx, new_user).await;
+        let result = repo_service.user_repository.add_user(&*tx, new_user).await;
 
         assert!(result.is_ok());
         let user = result.unwrap();
@@ -225,7 +225,7 @@ mod tests {
         let repo_service = create_mock_repository_service_with_db(mock_db);
         let tx = repo_service.repository.begin().await.unwrap();
 
-        let result = repo_service.user_service.find_by_id(&*tx, 1).await;
+        let result = repo_service.user_repository.find_by_id(&*tx, 1).await;
 
         assert!(result.is_ok());
         let user = result.unwrap();
@@ -242,7 +242,7 @@ mod tests {
         let repo_service = create_mock_repository_service_with_db(mock_db);
         let tx = repo_service.repository.begin().await.unwrap();
 
-        let result = repo_service.user_service.find_by_id(&*tx, 999).await;
+        let result = repo_service.user_repository.find_by_id(&*tx, 999).await;
 
         assert!(result.is_ok());
         assert!(result.unwrap().is_none());
@@ -250,7 +250,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_find_by_id_invalid_id() {
-        let adapter = UserServiceAdapter::new();
+        let adapter = UserRepositoryAdapter::new();
 
         // Create a mock transaction - we won't actually use it since validation fails
         // first
@@ -274,7 +274,7 @@ mod tests {
         let repo_service = create_mock_repository_service_with_db(mock_db);
         let tx = repo_service.repository.begin().await.unwrap();
 
-        let result = repo_service.user_service.find_by_email(&*tx, "john@example.com").await;
+        let result = repo_service.user_repository.find_by_email(&*tx, "john@example.com").await;
 
         assert!(result.is_ok());
         let user = result.unwrap();
@@ -289,7 +289,7 @@ mod tests {
         let repo_service = create_mock_repository_service_with_db(mock_db);
         let tx = repo_service.repository.begin().await.unwrap();
 
-        let result = repo_service.user_service.find_by_email(&*tx, "unknown@example.com").await;
+        let result = repo_service.user_repository.find_by_email(&*tx, "unknown@example.com").await;
 
         assert!(result.is_ok());
         assert!(result.unwrap().is_none());
@@ -308,7 +308,7 @@ mod tests {
         let repo_service = create_mock_repository_service_with_db(mock_db);
         let tx = repo_service.repository.begin().await.unwrap();
 
-        let result = repo_service.user_service.list_users(&*tx, None, None).await;
+        let result = repo_service.user_repository.list_users(&*tx, None, None).await;
 
         assert!(result.is_ok());
         let users = result.unwrap();
@@ -324,7 +324,7 @@ mod tests {
         let repo_service = create_mock_repository_service_with_db(mock_db);
         let tx = repo_service.repository.begin().await.unwrap();
 
-        let result = repo_service.user_service.list_users(&*tx, None, None).await;
+        let result = repo_service.user_repository.list_users(&*tx, None, None).await;
 
         assert!(result.is_ok());
         assert!(result.unwrap().is_empty());
@@ -336,7 +336,7 @@ mod tests {
         let repo_service = create_mock_repository_service_with_db(mock_db);
         let tx = repo_service.repository.begin().await.unwrap();
 
-        let result = repo_service.user_service.list_users(&*tx, Some(-1), None).await;
+        let result = repo_service.user_repository.list_users(&*tx, Some(-1), None).await;
 
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), Error::InvalidId(-1)));
@@ -348,7 +348,7 @@ mod tests {
         let repo_service = create_mock_repository_service_with_db(mock_db);
         let tx = repo_service.repository.begin().await.unwrap();
 
-        let result = repo_service.user_service.list_users(&*tx, None, Some(0)).await;
+        let result = repo_service.user_repository.list_users(&*tx, None, Some(0)).await;
 
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), Error::InvalidPageSize(0)));
@@ -377,7 +377,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let result = repo_service.user_service.update_user(&*tx, user).await;
+        let result = repo_service.user_repository.update_user(&*tx, user).await;
 
         assert!(result.is_ok());
         let user = result.unwrap();
@@ -399,7 +399,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let result = repo_service.user_service.update_user(&*tx, user).await;
+        let result = repo_service.user_repository.update_user(&*tx, user).await;
 
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), Error::RepositoryError(RepositoryError::NotFound)));
@@ -422,7 +422,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let result = repo_service.user_service.update_user(&*tx, user).await;
+        let result = repo_service.user_repository.update_user(&*tx, user).await;
 
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), Error::RepositoryError(RepositoryError::Conflict)));
@@ -442,7 +442,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let result = repo_service.user_service.update_user(&*tx, user).await;
+        let result = repo_service.user_repository.update_user(&*tx, user).await;
 
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), Error::InvalidId(-1)));
@@ -473,7 +473,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let result = repo_service.user_service.delete_user(&*tx, user).await;
+        let result = repo_service.user_repository.delete_user(&*tx, user).await;
 
         assert!(result.is_ok());
         let deleted = result.unwrap();
@@ -496,7 +496,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let result = repo_service.user_service.delete_user(&*tx, user).await;
+        let result = repo_service.user_repository.delete_user(&*tx, user).await;
 
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), Error::RepositoryError(RepositoryError::NotFound)));
@@ -519,7 +519,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let result = repo_service.user_service.delete_user(&*tx, user).await;
+        let result = repo_service.user_repository.delete_user(&*tx, user).await;
 
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), Error::RepositoryError(RepositoryError::Conflict)));
@@ -537,7 +537,7 @@ mod tests {
         let repo_service = create_mock_repository_service_with_db(mock_db);
         let tx = repo_service.repository.begin().await.unwrap();
 
-        let result = repo_service.user_service.find_by_token(&*tx, token).await;
+        let result = repo_service.user_repository.find_by_token(&*tx, token).await;
 
         assert!(result.is_ok());
         let user = result.unwrap();
@@ -554,7 +554,7 @@ mod tests {
         let repo_service = create_mock_repository_service_with_db(mock_db);
         let tx = repo_service.repository.begin().await.unwrap();
 
-        let result = repo_service.user_service.find_by_token(&*tx, Uuid::new_v4()).await;
+        let result = repo_service.user_repository.find_by_token(&*tx, Uuid::new_v4()).await;
 
         assert!(result.is_ok());
         assert!(result.unwrap().is_none());
