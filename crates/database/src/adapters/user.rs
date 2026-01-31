@@ -83,17 +83,16 @@ impl UserService for UserServiceAdapter {
     }
 
     #[tracing::instrument(level = "trace", skip(self, transaction))]
-    async fn delete_user(&self, transaction: &dyn Transaction, id: i64) -> Result<User, Error> {
-        if id < 0 {
-            return Err(Error::InvalidId(id));
-        }
-
+    async fn delete_user(&self, transaction: &dyn Transaction, user: User) -> Result<User, Error> {
         let transaction = TransactionImpl::get_db_transaction(transaction)?;
 
-        let existing = prelude::Users::find_by_id(id).one(transaction).await.map_err(handle_dberr)?;
+        let existing = prelude::Users::find_by_id(user.id).one(transaction).await.map_err(handle_dberr)?;
         let Some(existing) = existing else {
             return Err(Error::RepositoryError(RepositoryError::NotFound));
         };
+        if existing.version != user.version {
+            return Err(Error::RepositoryError(RepositoryError::Conflict));
+        }
 
         let user: User = existing.clone().into();
         existing.delete(transaction).await.map_err(handle_dberr)?;

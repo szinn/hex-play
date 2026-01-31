@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    Error,
+    Error, RepositoryError,
     models::{NewUser, User},
     services::{RepositoryService, read_only_transaction, transaction},
 };
@@ -58,7 +58,14 @@ impl UserUseCases for UserUseCasesImpl {
     async fn delete_user(&self, id: i64) -> Result<User, Error> {
         let user_service = self.repository_service.user_service.clone();
         transaction(&*self.repository_service.repository, |tx| {
-            Box::pin(async move { user_service.delete_user(tx, id).await })
+            Box::pin(async move {
+                let user = user_service.find_by_id(tx, id).await?;
+                if let Some(user) = user {
+                    user_service.delete_user(tx, user).await
+                } else {
+                    Err(Error::RepositoryError(RepositoryError::NotFound))
+                }
+            })
         })
         .await
     }
