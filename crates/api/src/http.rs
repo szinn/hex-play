@@ -53,7 +53,7 @@ impl IntoSubsystem<Error> for HttpSubsystem {
             }))
             .layer(PropagateRequestIdLayer::new(x_request_id));
 
-        let user_routes = user::routes::get_routes(self.core_services.clone());
+        let user_routes = user::get_routes(self.core_services.clone());
         let app = Router::new().route("/", get(hello_handler)).merge(user_routes).layer(middleware);
 
         let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();

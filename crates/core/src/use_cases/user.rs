@@ -59,12 +59,11 @@ impl UserUseCases for UserUseCasesImpl {
         let user_service = self.repository_service.user_service.clone();
         transaction(&*self.repository_service.repository, |tx| {
             Box::pin(async move {
-                let user = user_service.find_by_id(tx, id).await?;
-                if let Some(user) = user {
-                    user_service.delete_user(tx, user).await
-                } else {
-                    Err(Error::RepositoryError(RepositoryError::NotFound))
-                }
+                let user = user_service
+                    .find_by_id(tx, id)
+                    .await?
+                    .ok_or(Error::RepositoryError(RepositoryError::NotFound))?;
+                user_service.delete_user(tx, user).await
             })
         })
         .await

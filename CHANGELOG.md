@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### <!-- 01 -->Features
 
 - _(core)_ Add transaction helper functions with auto commit/rollback
+- _(core,database,api)_ Implement user CRUD use cases
 - Config framework
 - Command arguments framework
 - Database framework
@@ -27,8 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### <!-- 06 -->Miscellaneous Tasks
 
+- _(api)_ Add HTTP endpoint tests for user routes
 - _(config)_ Migrate config .renovaterc.json5 ([#3](https://github.com/szinn/rust-arch/issues/3))
 - _(core)_ Improve module organization and add NewUser model
+- _(core,database)_ Improve delete_user with optimistic locking
+- _(core,database)_ Add unit tests for user use cases and adapter
+- _(core,database,api)_ Use idiomatic combinators and flatten module structure
 - _(deps)_ Update renovatebot/github-action action to v40.3.6
 - _(deps)_ Update rust crate clap to 4.5.56 ([#4](https://github.com/szinn/rust-arch/issues/4))
 - Update to sea-orm 2.0.0-rc

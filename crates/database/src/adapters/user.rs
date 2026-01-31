@@ -29,7 +29,7 @@ pub struct UserServiceAdapter;
 
 impl UserServiceAdapter {
     pub(crate) fn new() -> Self {
-        Self {}
+        Self
     }
 }
 
@@ -59,12 +59,11 @@ impl UserService for UserServiceAdapter {
 
         let transaction = TransactionImpl::get_db_transaction(transaction)?;
 
-        let existing = prelude::Users::find_by_id(user.id).one(transaction).await.map_err(handle_dberr)?;
-        if existing.is_none() {
-            return Err(Error::RepositoryError(RepositoryError::NotFound));
-        }
-
-        let existing = existing.unwrap();
+        let existing = prelude::Users::find_by_id(user.id)
+            .one(transaction)
+            .await
+            .map_err(handle_dberr)?
+            .ok_or(Error::RepositoryError(RepositoryError::NotFound))?;
         if existing.version != user.version {
             return Err(Error::RepositoryError(RepositoryError::Conflict));
         }
@@ -141,19 +140,17 @@ impl UserService for UserServiceAdapter {
 
         let transaction = TransactionImpl::get_db_transaction(transaction)?;
 
-        match prelude::Users::find_by_id(id).one(transaction).await.map_err(handle_dberr)? {
-            Some(model) => Ok(Some(model.into())),
-            None => Ok(None),
-        }
+        Ok(prelude::Users::find_by_id(id).one(transaction).await.map_err(handle_dberr)?.map(Into::into))
     }
     #[tracing::instrument(level = "trace", skip(self, transaction))]
     async fn find_by_email(&self, transaction: &dyn Transaction, email: &str) -> Result<Option<User>, Error> {
         let transaction = TransactionImpl::get_db_transaction(transaction)?;
 
-        match prelude::Users::find_by_email(email).one(transaction).await.map_err(handle_dberr)? {
-            Some(model) => Ok(Some(model.into())),
-            None => Ok(None),
-        }
+        Ok(prelude::Users::find_by_email(email)
+            .one(transaction)
+            .await
+            .map_err(handle_dberr)?
+            .map(Into::into))
     }
 }
 

@@ -1,140 +1,131 @@
-pub(crate) mod routes {
-    use std::sync::Arc;
+use std::sync::Arc;
 
-    use axum::{
-        Json, Router,
-        extract::{Path, Query, State},
-        routing::{get, post},
-    };
-    use hex_play_core::{
-        models::{NewUser, User},
-        services::CoreServices,
-    };
-    use serde::{Deserialize, Serialize};
+use axum::{
+    Json, Router,
+    extract::{Path, Query, State},
+    http::StatusCode,
+    routing::{get, post},
+};
+use hex_play_core::{
+    models::{NewUser, User},
+    services::CoreServices,
+};
+use serde::{Deserialize, Serialize};
 
-    use crate::http::error::Error;
+use crate::http::error::Error;
 
-    pub(crate) fn get_routes(core_services: Arc<CoreServices>) -> Router {
-        Router::new()
-            .nest(
-                "/api/v1/user",
-                Router::new()
-                    .route("/", post(create_user).get(list_users))
-                    .route("/{id}", get(get_user).patch(update_user).delete(delete_user)),
-            )
-            .with_state(core_services)
-    }
+pub(crate) fn get_routes(core_services: Arc<CoreServices>) -> Router {
+    Router::new()
+        .nest(
+            "/api/v1/user",
+            Router::new()
+                .route("/", post(create_user).get(list_users))
+                .route("/{id}", get(get_user).patch(update_user).delete(delete_user)),
+        )
+        .with_state(core_services)
+}
 
-    #[derive(Serialize, Deserialize, Debug)]
-    struct CreateUserRequest {
-        name: String,
-        email: String,
-    }
+#[derive(Deserialize, Debug)]
+struct CreateUserRequest {
+    name: String,
+    email: String,
+}
 
-    #[derive(Serialize, Deserialize, Debug)]
-    struct UserResponse {
-        id: i64,
-        name: String,
-        email: String,
-    }
-
-    impl From<User> for UserResponse {
-        fn from(user: User) -> Self {
-            Self {
-                id: user.id,
-                name: user.name,
-                email: user.email,
-            }
+impl From<CreateUserRequest> for NewUser {
+    fn from(req: CreateUserRequest) -> Self {
+        Self {
+            name: req.name,
+            email: req.email,
         }
     }
+}
 
-    #[tracing::instrument(level = "trace", skip(core_services))]
-    async fn create_user(State(core_services): State<Arc<CoreServices>>, Json(request): Json<CreateUserRequest>) -> Result<Json<UserResponse>, Error> {
-        let new_user = NewUser {
-            name: request.name,
-            email: request.email,
-        };
-        let user = core_services.user.add_user(new_user).await.map_err(Error::Core)?;
+#[derive(Serialize, Debug)]
+struct UserResponse {
+    id: i64,
+    name: String,
+    email: String,
+}
 
-        Ok(Json(user.into()))
-    }
-
-    #[derive(Deserialize, Debug, Default)]
-    pub struct FilterOptions {
-        pub start_id: Option<i64>,
-        pub page_size: Option<u64>,
-    }
-
-    #[derive(Serialize, Debug)]
-    pub struct ListUsersResponse {
-        users: Vec<UserResponse>,
-    }
-
-    #[tracing::instrument(level = "trace", skip(core_services))]
-    async fn list_users(Query(opts): Query<FilterOptions>, State(core_services): State<Arc<CoreServices>>) -> Result<Json<ListUsersResponse>, Error> {
-        let users = core_services
-            .user
-            .list_users(opts.start_id, opts.page_size)
-            .await
-            .map_err(Error::Core)?
-            .into_iter()
-            .map(|user| user.into())
-            .collect();
-
-        let response = ListUsersResponse { users };
-
-        Ok(Json(response))
-    }
-
-    #[tracing::instrument(level = "trace", skip(core_services))]
-    async fn get_user(Path(id): Path<i64>, State(core_services): State<Arc<CoreServices>>) -> Result<Json<UserResponse>, Error> {
-        let user = core_services.user.find_by_id(id).await.map_err(Error::Core)?;
-
-        if let Some(user) = user {
-            return Ok(Json(user.into()));
+impl From<User> for UserResponse {
+    fn from(user: User) -> Self {
+        Self {
+            id: user.id,
+            name: user.name,
+            email: user.email,
         }
+    }
+}
 
-        Err(Error::NotFound)
+#[tracing::instrument(level = "trace", skip(core_services))]
+async fn create_user(
+    State(core_services): State<Arc<CoreServices>>,
+    Json(request): Json<CreateUserRequest>,
+) -> Result<(StatusCode, Json<UserResponse>), Error> {
+    let user = core_services.user.add_user(request.into()).await.map_err(Error::Core)?;
+    Ok((StatusCode::CREATED, Json(user.into())))
+}
+
+#[derive(Deserialize, Debug, Default)]
+pub struct FilterOptions {
+    pub start_id: Option<i64>,
+    pub page_size: Option<u64>,
+}
+
+#[derive(Serialize, Debug)]
+pub struct ListUsersResponse {
+    users: Vec<UserResponse>,
+}
+
+#[tracing::instrument(level = "trace", skip(core_services))]
+async fn list_users(Query(opts): Query<FilterOptions>, State(core_services): State<Arc<CoreServices>>) -> Result<Json<ListUsersResponse>, Error> {
+    let users = core_services
+        .user
+        .list_users(opts.start_id, opts.page_size)
+        .await
+        .map_err(Error::Core)?
+        .into_iter()
+        .map(Into::into)
+        .collect();
+
+    Ok(Json(ListUsersResponse { users }))
+}
+
+#[tracing::instrument(level = "trace", skip(core_services))]
+async fn get_user(Path(id): Path<i64>, State(core_services): State<Arc<CoreServices>>) -> Result<Json<UserResponse>, Error> {
+    let user = core_services.user.find_by_id(id).await.map_err(Error::Core)?.ok_or(Error::NotFound)?;
+    Ok(Json(user.into()))
+}
+
+#[derive(Deserialize, Debug)]
+struct UpdateUserRequest {
+    name: Option<String>,
+    email: Option<String>,
+}
+
+#[tracing::instrument(level = "trace", skip(core_services))]
+async fn update_user(
+    Path(id): Path<i64>,
+    State(core_services): State<Arc<CoreServices>>,
+    Json(request): Json<UpdateUserRequest>,
+) -> Result<Json<UserResponse>, Error> {
+    let mut user = core_services.user.find_by_id(id).await.map_err(Error::Core)?.ok_or(Error::NotFound)?;
+
+    if let Some(name) = request.name {
+        user.name = name;
+    }
+    if let Some(email) = request.email {
+        user.email = email;
     }
 
-    #[derive(Serialize, Deserialize, Debug)]
-    struct UpdateUserRequest {
-        #[serde(skip_serializing_if = "Option::is_none")]
-        name: Option<String>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        email: Option<String>,
-    }
+    let user = core_services.user.update_user(user).await.map_err(Error::Core)?;
+    Ok(Json(user.into()))
+}
 
-    #[tracing::instrument(level = "trace", skip(core_services))]
-    async fn update_user(
-        Path(id): Path<i64>,
-        State(core_services): State<Arc<CoreServices>>,
-        Json(request): Json<UpdateUserRequest>,
-    ) -> Result<Json<UserResponse>, Error> {
-        let user = core_services.user.find_by_id(id).await.map_err(Error::Core)?;
-
-        if let Some(mut user) = user {
-            if let Some(name) = request.name {
-                user.name = name;
-            }
-            if let Some(email) = request.email {
-                user.email = email;
-            }
-
-            let user = core_services.user.update_user(user).await.map_err(Error::Core)?;
-
-            return Ok(Json(user.into()));
-        }
-
-        Err(Error::NotFound)
-    }
-
-    #[tracing::instrument(level = "trace", skip(core_services))]
-    async fn delete_user(Path(id): Path<i64>, State(core_services): State<Arc<CoreServices>>) -> Result<Json<UserResponse>, Error> {
-        let user = core_services.user.delete_user(id).await.map_err(Error::Core)?;
-
-        return Ok(Json(user.into()));
-    }
+#[tracing::instrument(level = "trace", skip(core_services))]
+async fn delete_user(Path(id): Path<i64>, State(core_services): State<Arc<CoreServices>>) -> Result<Json<UserResponse>, Error> {
+    let user = core_services.user.delete_user(id).await.map_err(Error::Core)?;
+    Ok(Json(user.into()))
 }
 
 #[cfg(test)]
@@ -154,7 +145,7 @@ mod tests {
     };
     use tower::ServiceExt;
 
-    use super::routes::get_routes;
+    use super::get_routes;
 
     // ===================
     // Mock UserUseCases
@@ -276,7 +267,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.status(), StatusCode::CREATED);
 
         let body = body_to_string(response.into_body()).await;
         assert!(body.contains(r#""id":1"#));
