@@ -38,7 +38,8 @@
       matchDatasources: ["cargo"],
       addLabels: ["dependency"],
       commitMessageTopic: "Crate {{depName}}",
-      semanticCommitScope: "deps"
+      semanticCommitScope: "deps",
+      rangeStrategy: "bump"
     },
     // Docker: labels and commit message
     {
