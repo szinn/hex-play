@@ -57,20 +57,7 @@ impl UserService for UserServiceImpl {
 
     #[tracing::instrument(level = "trace", skip(self))]
     async fn list_users(&self, start_id: Option<i64>, page_size: Option<u64>) -> Result<Vec<User>, Error> {
-        with_read_only_transaction!(self, user_repository, user_info_repository, |tx| {
-            let mut users = user_repository.list_users(tx, start_id, page_size).await?;
-            let tokens: Vec<_> = users.iter().map(|u| u.token).collect();
-            let infos = user_info_repository.find_by_tokens(tx, &tokens).await?;
-
-            let info_map: std::collections::HashMap<_, _> = infos.into_iter().map(|i| (i.user_token, i.age)).collect();
-
-            for user in &mut users {
-                if let Some(&age) = info_map.get(&user.token) {
-                    user.age = age;
-                }
-            }
-            Ok(users)
-        })
+        with_read_only_transaction!(self, user_repository, |tx| user_repository.list_users(tx, start_id, page_size).await)
     }
 
     #[tracing::instrument(level = "trace", skip(self))]

@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - _(core,database)_ Added update for User service
 - _(core,database)_ CoreServices framework
 - _(database)_ Database framework
+- Exploring entity-first vs migrations
 
 ### <!-- 06 -->Miscellaneous Tasks
 
@@ -46,3 +47,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Configure Renovate to update Cargo.toml version constraints
 - Configure Renovate to update Cargo.toml version constraints
 - Upgrade crate dependencies
+- Use find_with_related for list_users

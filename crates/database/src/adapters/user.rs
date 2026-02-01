@@ -7,7 +7,10 @@ use hex_play_core::{
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, ModelTrait, QueryFilter, QueryOrder, QuerySelect, prelude::Uuid};
 
 use crate::{
-    entities::{prelude, users},
+    entities::{
+        prelude::{self, UserInfo},
+        user_info, users,
+    },
     error::handle_dberr,
     transaction::TransactionImpl,
 };
@@ -24,6 +27,19 @@ impl From<users::Model> for User {
             created_at: model.created_at.with_timezone(&Utc),
             updated_at: model.updated_at.with_timezone(&Utc),
         }
+    }
+}
+
+fn to_user(user: users::Model, user_infos: Vec<user_info::Model>) -> User {
+    User {
+        id: user.id,
+        version: user.version,
+        token: user.token,
+        name: user.name,
+        email: user.email,
+        age: user_infos.first().unwrap().age,
+        created_at: user.created_at.with_timezone(&Utc),
+        updated_at: user.updated_at.with_timezone(&Utc),
     }
 }
 
@@ -137,9 +153,9 @@ impl UserRepository for UserRepositoryAdapter {
         let page_size = page_size.unwrap_or(DEFAULT_PAGE_SIZE).min(MAX_PAGE_SIZE);
         query = query.limit(page_size);
 
-        let users = query.all(transaction).await.map_err(handle_dberr)?;
+        let users = query.find_with_related(UserInfo).all(transaction).await.map_err(handle_dberr)?;
 
-        Ok(users.into_iter().map(Into::into).collect())
+        Ok(users.into_iter().map(|(u, ui)| to_user(u, ui)).collect())
     }
 
     #[tracing::instrument(level = "trace", skip(self, transaction))]
