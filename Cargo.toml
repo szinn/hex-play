@@ -77,7 +77,7 @@ version = "1.0.228"
 features = ["derive"]
 
 [workspace.dependencies.sqlx]
-version = "0.8"
+version = "0.8.6"
 default-features = false
 
 [workspace.dependencies.tokio]
@@ -103,7 +103,7 @@ version = "0.3.22"
 features = ["std", "fmt", "registry", "env-filter", "json"]
 
 [workspace.dependencies.uuid]
-version = "1"
+version = "1.20.0"
 features = ["v4", "serde"]
 
 [workspace.lints.rust]
