@@ -6,10 +6,8 @@ use sea_orm::DatabaseConnection;
 use crate::adapters::{user::UserRepositoryAdapter, user_info::UserInfoRepositoryAdapter};
 
 pub mod error;
-pub mod migration;
 
 pub use error::*;
-pub use migration::*;
 
 mod adapters;
 mod entities;
@@ -22,12 +20,11 @@ use transaction::*;
 #[tracing::instrument(level = "trace", skip(database))]
 pub async fn create_repository_service(database: DatabaseConnection) -> Result<Arc<RepositoryService>, Error> {
     tracing::debug!("Connecting to database...");
-    // database
-    //     .get_schema_registry("hex-play-database::entities::*")
-    //     .sync(&database)
-    //     .await
-    //     .map_err(handle_dberr)?;
-    apply_migrations(&database).await?;
+    database
+        .get_schema_registry("hex-play-database::entities::*")
+        .sync(&database)
+        .await
+        .map_err(handle_dberr)?;
 
     let repository = RepositoryImpl::new(database);
     let user_repository = UserRepositoryAdapter::new();

@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - _(api,core,database)_ Add age field to User with user_info storage
 - _(cli)_ Config framework
 - _(cli)_ Command arguments framework
+- _(cli,core,database)_ Switch to Entity First Workflow
 - _(core)_ Add transaction helper functions with auto commit/rollback
 - _(core,database)_ Beginning of repository and transactions
 - _(core,database)_ Beginning of User service

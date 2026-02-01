@@ -268,7 +268,6 @@ mod tests {
         add_info_result: Mutex<Option<Result<UserInfo, Error>>>,
         update_info_result: Mutex<Option<Result<UserInfo, Error>>>,
         find_by_token_result: Mutex<Option<Result<Option<UserInfo>, Error>>>,
-        find_by_tokens_result: Mutex<Option<Result<Vec<UserInfo>, Error>>>,
     }
 
     impl MockUserInfoRepository {
@@ -286,11 +285,6 @@ mod tests {
             *self.find_by_token_result.lock().unwrap() = Some(result);
             self
         }
-
-        fn with_find_by_tokens_result(self, result: Result<Vec<UserInfo>, Error>) -> Self {
-            *self.find_by_tokens_result.lock().unwrap() = Some(result);
-            self
-        }
     }
 
     #[async_trait::async_trait]
@@ -305,10 +299,6 @@ mod tests {
 
         async fn find_by_token(&self, _tx: &dyn Transaction, _user_token: Uuid) -> Result<Option<UserInfo>, Error> {
             self.find_by_token_result.lock().unwrap().take().unwrap_or_else(|| Ok(None))
-        }
-
-        async fn find_by_tokens(&self, _tx: &dyn Transaction, _user_tokens: &[Uuid]) -> Result<Vec<UserInfo>, Error> {
-            self.find_by_tokens_result.lock().unwrap().take().unwrap_or_else(|| Ok(Vec::new()))
         }
     }
 
@@ -459,24 +449,13 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_list_users_success() {
-        let user1 = User::test(1, "John Doe", "john@example.com");
-        let user2 = User::test(2, "Jane Doe", "jane@example.com");
-        let users = vec![user1.clone(), user2.clone()];
+        // The database adapter's list_users fetches ages via JOIN, so the mock
+        // should return users with ages already populated
+        let user1 = User::test_with_age(1, "John Doe", "john@example.com", 30);
+        let user2 = User::test_with_age(2, "Jane Doe", "jane@example.com", 25);
+        let users = vec![user1, user2];
         let mock_user_repository = MockUserRepository::default().with_list_users_result(Ok(users));
-        let user_infos = vec![
-            UserInfo {
-                user_token: user1.token,
-                age: 30,
-                ..Default::default()
-            },
-            UserInfo {
-                user_token: user2.token,
-                age: 25,
-                ..Default::default()
-            },
-        ];
-        let mock_user_info_repository = MockUserInfoRepository::default().with_find_by_tokens_result(Ok(user_infos));
-        let use_cases = create_use_cases_with_info(mock_user_repository, mock_user_info_repository);
+        let use_cases = create_use_cases(mock_user_repository);
 
         let result = use_cases.list_users(None, None).await;
 
