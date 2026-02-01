@@ -41,6 +41,8 @@ impl UserInfoRepository for UserInfoRepositoryAdapter {
         let model = user_info::ActiveModel {
             user_token: Set(user_token),
             age: Set(age),
+            // created_at: Set(chrono::Utc::now().into()),
+            // updated_at: Set(chrono::Utc::now().into()),
             ..Default::default()
         };
 
@@ -65,6 +67,9 @@ impl UserInfoRepository for UserInfoRepositoryAdapter {
                 // Update existing record
                 let mut updater: user_info::ActiveModel = existing.into();
                 updater.age = Set(age);
+                // if updater.is_changed() {
+                //     updater.updated_at = Set(Utc::now().into());
+                // }
                 let updated = updater.update(transaction).await.map_err(handle_dberr)?;
                 Ok(updated.into())
             }

@@ -22,6 +22,11 @@ use transaction::*;
 #[tracing::instrument(level = "trace", skip(database))]
 pub async fn create_repository_service(database: DatabaseConnection) -> Result<Arc<RepositoryService>, Error> {
     tracing::debug!("Connecting to database...");
+    // database
+    //     .get_schema_registry("hex-play-database::entities::*")
+    //     .sync(&database)
+    //     .await
+    //     .map_err(handle_dberr)?;
     apply_migrations(&database).await?;
 
     let repository = RepositoryImpl::new(database);

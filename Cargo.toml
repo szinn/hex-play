@@ -62,6 +62,8 @@ features = [
     "with-chrono",
     "with-json",
     "with-uuid",
+    # "entity-registry",
+    # "schema-sync",
 ]
 
 [workspace.dependencies.sea-orm-migration]

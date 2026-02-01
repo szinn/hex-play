@@ -45,6 +45,9 @@ impl UserRepository for UserRepositoryAdapter {
             name: Set(user.name),
             email: Set(user.email),
             version: Set(0),
+            // token: Set(Uuid::new_v4()),
+            // created_at: Set(chrono::Utc::now().into()),
+            // updated_at: Set(chrono::Utc::now().into()),
             ..Default::default()
         };
 
@@ -77,6 +80,10 @@ impl UserRepository for UserRepositoryAdapter {
         if existing.email != user.email {
             updater.email = Set(user.email);
         }
+        // if updater.is_changed() {
+        //     updater.version = Set(user.version + 1);
+        //     updater.updated_at = Set(Utc::now().into());
+        // }
 
         let updated = updater.update(transaction).await.map_err(handle_dberr)?;
 
