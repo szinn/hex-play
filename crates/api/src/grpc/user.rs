@@ -147,6 +147,555 @@ pub(crate) mod handler {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use hex_play_core::{Error, RepositoryError, models::User, services::CoreServices, test_support::MockUserService};
+    use tonic::{Code, Request};
+    use uuid::Uuid;
+
+    use super::{GrpcUserService, handler};
+    use crate::grpc::user_proto::{
+        CreateUserRequest, DeleteUserRequest, GetUserByTokenRequest, GetUserRequest, ListUsersRequest, UpdateUserRequest, user_service_server::UserService,
+    };
+
+    // ===================
+    // Test Helpers
+    // ===================
+    fn create_test_service(mock: MockUserService) -> GrpcUserService {
+        let core_services = Arc::new(CoreServices { user_service: Arc::new(mock) });
+        GrpcUserService::new(core_services)
+    }
+
+    fn create_core_services(mock: MockUserService) -> CoreServices {
+        CoreServices { user_service: Arc::new(mock) }
+    }
+
+    // ===================
+    // Tests: handler::create
+    // ===================
+    #[tokio::test]
+    async fn test_handler_create_success() {
+        let user = User::test_with_age(1, "John Doe", "john@example.com", 30);
+        let mock = MockUserService::default().with_add_user_result(Ok(user.clone()));
+        let core_services = create_core_services(mock);
+
+        let request = CreateUserRequest {
+            name: "John Doe".into(),
+            email: "john@example.com".into(),
+            age: 30,
+        };
+
+        let result = handler::create(&core_services, request).await.unwrap();
+
+        assert_eq!(result.id, 1);
+        assert_eq!(result.name, "John Doe");
+        assert_eq!(result.email, "john@example.com");
+        assert_eq!(result.age, 30);
+    }
+
+    #[tokio::test]
+    async fn test_handler_create_with_zero_age() {
+        let user = User::test(1, "John Doe", "john@example.com");
+        let mock = MockUserService::default().with_add_user_result(Ok(user));
+        let core_services = create_core_services(mock);
+
+        let request = CreateUserRequest {
+            name: "John Doe".into(),
+            email: "john@example.com".into(),
+            age: 0,
+        };
+
+        let result = handler::create(&core_services, request).await.unwrap();
+
+        assert_eq!(result.age, 0);
+    }
+
+    #[tokio::test]
+    async fn test_handler_create_constraint_violation() {
+        let mock = MockUserService::default().with_add_user_result(Err(Error::RepositoryError(RepositoryError::Constraint("duplicate email".into()))));
+        let core_services = create_core_services(mock);
+
+        let request = CreateUserRequest {
+            name: "John Doe".into(),
+            email: "john@example.com".into(),
+            age: 30,
+        };
+
+        let result = handler::create(&core_services, request).await;
+
+        assert!(result.is_err());
+    }
+
+    // ===================
+    // Tests: handler::get
+    // ===================
+    #[tokio::test]
+    async fn test_handler_get_success() {
+        let user = User::test_with_age(1, "John Doe", "john@example.com", 30);
+        let mock = MockUserService::default().with_find_by_id_result(Ok(Some(user)));
+        let core_services = create_core_services(mock);
+
+        let request = GetUserRequest { id: 1 };
+
+        let result = handler::get(&core_services, request).await.unwrap();
+
+        assert_eq!(result.id, 1);
+        assert_eq!(result.name, "John Doe");
+        assert_eq!(result.email, "john@example.com");
+        assert_eq!(result.age, 30);
+    }
+
+    #[tokio::test]
+    async fn test_handler_get_not_found() {
+        let mock = MockUserService::default().with_find_by_id_result(Ok(None));
+        let core_services = create_core_services(mock);
+
+        let request = GetUserRequest { id: 999 };
+
+        let result = handler::get(&core_services, request).await;
+
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(matches!(err, Error::RepositoryError(RepositoryError::NotFound)));
+    }
+
+    #[tokio::test]
+    async fn test_handler_get_invalid_id() {
+        let mock = MockUserService::default().with_find_by_id_result(Err(Error::InvalidId(-1)));
+        let core_services = create_core_services(mock);
+
+        let request = GetUserRequest { id: -1 };
+
+        let result = handler::get(&core_services, request).await;
+
+        assert!(result.is_err());
+    }
+
+    // ===================
+    // Tests: handler::get_by_token
+    // ===================
+    #[tokio::test]
+    async fn test_handler_get_by_token_success() {
+        let user = User::test_with_age(1, "John Doe", "john@example.com", 30);
+        let token = user.token;
+        let mock = MockUserService::default().with_find_by_token_result(Ok(Some(user)));
+        let core_services = create_core_services(mock);
+
+        let request = GetUserByTokenRequest { token: token.to_string() };
+
+        let result = handler::get_by_token(&core_services, request).await.unwrap();
+
+        assert_eq!(result.id, 1);
+        assert_eq!(result.token, token.to_string());
+    }
+
+    #[tokio::test]
+    async fn test_handler_get_by_token_not_found() {
+        let mock = MockUserService::default().with_find_by_token_result(Ok(None));
+        let core_services = create_core_services(mock);
+
+        let token = Uuid::new_v4();
+        let request = GetUserByTokenRequest { token: token.to_string() };
+
+        let result = handler::get_by_token(&core_services, request).await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_handler_get_by_token_invalid_uuid() {
+        let mock = MockUserService::default();
+        let core_services = create_core_services(mock);
+
+        let request = GetUserByTokenRequest { token: "not-a-uuid".into() };
+
+        let result = handler::get_by_token(&core_services, request).await;
+
+        assert!(result.is_err());
+    }
+
+    // ===================
+    // Tests: handler::update
+    // ===================
+    #[tokio::test]
+    async fn test_handler_update_success() {
+        let existing = User::test_with_age(1, "John Doe", "john@example.com", 30);
+        let updated = User::test_with_age(1, "John Updated", "john@example.com", 30);
+        let mock = MockUserService::default()
+            .with_find_by_id_result(Ok(Some(existing)))
+            .with_update_user_result(Ok(updated));
+        let core_services = create_core_services(mock);
+
+        let request = UpdateUserRequest {
+            id: 1,
+            name: Some("John Updated".into()),
+            email: None,
+            age: None,
+        };
+
+        let result = handler::update(&core_services, request).await.unwrap();
+
+        assert_eq!(result.name, "John Updated");
+        assert_eq!(result.age, 30);
+    }
+
+    #[tokio::test]
+    async fn test_handler_update_email_only() {
+        let existing = User::test_with_age(1, "John Doe", "john@example.com", 25);
+        let updated = User::test_with_age(1, "John Doe", "john.new@example.com", 25);
+        let mock = MockUserService::default()
+            .with_find_by_id_result(Ok(Some(existing)))
+            .with_update_user_result(Ok(updated));
+        let core_services = create_core_services(mock);
+
+        let request = UpdateUserRequest {
+            id: 1,
+            name: None,
+            email: Some("john.new@example.com".into()),
+            age: None,
+        };
+
+        let result = handler::update(&core_services, request).await.unwrap();
+
+        assert_eq!(result.email, "john.new@example.com");
+    }
+
+    #[tokio::test]
+    async fn test_handler_update_age_only() {
+        let existing = User::test_with_age(1, "John Doe", "john@example.com", 30);
+        let updated = User::test_with_age(1, "John Doe", "john@example.com", 31);
+        let mock = MockUserService::default()
+            .with_find_by_id_result(Ok(Some(existing)))
+            .with_update_user_result(Ok(updated));
+        let core_services = create_core_services(mock);
+
+        let request = UpdateUserRequest {
+            id: 1,
+            name: None,
+            email: None,
+            age: Some(31),
+        };
+
+        let result = handler::update(&core_services, request).await.unwrap();
+
+        assert_eq!(result.age, 31);
+    }
+
+    #[tokio::test]
+    async fn test_handler_update_not_found() {
+        let mock = MockUserService::default().with_find_by_id_result(Ok(None));
+        let core_services = create_core_services(mock);
+
+        let request = UpdateUserRequest {
+            id: 999,
+            name: Some("Updated".into()),
+            email: None,
+            age: None,
+        };
+
+        let result = handler::update(&core_services, request).await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_handler_update_conflict() {
+        let existing = User::test(1, "John Doe", "john@example.com");
+        let mock = MockUserService::default()
+            .with_find_by_id_result(Ok(Some(existing)))
+            .with_update_user_result(Err(Error::RepositoryError(RepositoryError::Conflict)));
+        let core_services = create_core_services(mock);
+
+        let request = UpdateUserRequest {
+            id: 1,
+            name: Some("Updated".into()),
+            email: None,
+            age: None,
+        };
+
+        let result = handler::update(&core_services, request).await;
+
+        assert!(result.is_err());
+    }
+
+    // ===================
+    // Tests: handler::delete
+    // ===================
+    #[tokio::test]
+    async fn test_handler_delete_success() {
+        let user = User::test_with_age(1, "John Doe", "john@example.com", 30);
+        let mock = MockUserService::default().with_delete_user_result(Ok(user));
+        let core_services = create_core_services(mock);
+
+        let request = DeleteUserRequest { id: 1 };
+
+        let result = handler::delete(&core_services, request).await.unwrap();
+
+        assert_eq!(result.id, 1);
+        assert_eq!(result.name, "John Doe");
+        assert_eq!(result.age, 30);
+    }
+
+    #[tokio::test]
+    async fn test_handler_delete_not_found() {
+        let mock = MockUserService::default().with_delete_user_result(Err(Error::RepositoryError(RepositoryError::NotFound)));
+        let core_services = create_core_services(mock);
+
+        let request = DeleteUserRequest { id: 999 };
+
+        let result = handler::delete(&core_services, request).await;
+
+        assert!(result.is_err());
+    }
+
+    // ===================
+    // Tests: handler::list
+    // ===================
+    #[tokio::test]
+    async fn test_handler_list_success() {
+        let users = vec![
+            User::test_with_age(1, "John Doe", "john@example.com", 30),
+            User::test_with_age(2, "Jane Doe", "jane@example.com", 25),
+        ];
+        let mock = MockUserService::default().with_list_users_result(Ok(users));
+        let core_services = create_core_services(mock);
+
+        let request = ListUsersRequest {
+            start_id: None,
+            page_size: None,
+        };
+
+        let result = handler::list(&core_services, request).await.unwrap();
+
+        assert_eq!(result.users.len(), 2);
+        assert_eq!(result.users[0].name, "John Doe");
+        assert_eq!(result.users[1].name, "Jane Doe");
+    }
+
+    #[tokio::test]
+    async fn test_handler_list_empty() {
+        let mock = MockUserService::default().with_list_users_result(Ok(vec![]));
+        let core_services = create_core_services(mock);
+
+        let request = ListUsersRequest {
+            start_id: None,
+            page_size: None,
+        };
+
+        let result = handler::list(&core_services, request).await.unwrap();
+
+        assert!(result.users.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_handler_list_with_pagination() {
+        let users = vec![User::test(5, "User Five", "five@example.com")];
+        let mock = MockUserService::default().with_list_users_result(Ok(users));
+        let core_services = create_core_services(mock);
+
+        let request = ListUsersRequest {
+            start_id: Some(5),
+            page_size: Some(10),
+        };
+
+        let result = handler::list(&core_services, request).await.unwrap();
+
+        assert_eq!(result.users.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_handler_list_invalid_start_id() {
+        let mock = MockUserService::default().with_list_users_result(Err(Error::InvalidId(-1)));
+        let core_services = create_core_services(mock);
+
+        let request = ListUsersRequest {
+            start_id: Some(-1),
+            page_size: None,
+        };
+
+        let result = handler::list(&core_services, request).await;
+
+        assert!(result.is_err());
+    }
+
+    // ===================
+    // Tests: GrpcUserService trait implementation
+    // ===================
+    #[tokio::test]
+    async fn test_grpc_service_create() {
+        let user = User::test_with_age(1, "John Doe", "john@example.com", 30);
+        let mock = MockUserService::default().with_add_user_result(Ok(user));
+        let service = create_test_service(mock);
+
+        let request = Request::new(CreateUserRequest {
+            name: "John Doe".into(),
+            email: "john@example.com".into(),
+            age: 30,
+        });
+
+        let response = service.create(request).await.unwrap();
+        let proto_user = response.into_inner();
+
+        assert_eq!(proto_user.id, 1);
+        assert_eq!(proto_user.name, "John Doe");
+    }
+
+    #[tokio::test]
+    async fn test_grpc_service_create_error_maps_to_status() {
+        let mock = MockUserService::default().with_add_user_result(Err(Error::RepositoryError(RepositoryError::Constraint("duplicate".into()))));
+        let service = create_test_service(mock);
+
+        let request = Request::new(CreateUserRequest {
+            name: "John Doe".into(),
+            email: "john@example.com".into(),
+            age: 30,
+        });
+
+        let result = service.create(request).await;
+
+        assert!(result.is_err());
+        let status = result.unwrap_err();
+        assert_eq!(status.code(), Code::InvalidArgument);
+    }
+
+    #[tokio::test]
+    async fn test_grpc_service_get() {
+        let user = User::test_with_age(1, "John Doe", "john@example.com", 30);
+        let mock = MockUserService::default().with_find_by_id_result(Ok(Some(user)));
+        let service = create_test_service(mock);
+
+        let request = Request::new(GetUserRequest { id: 1 });
+
+        let response = service.get(request).await.unwrap();
+        let proto_user = response.into_inner();
+
+        assert_eq!(proto_user.id, 1);
+    }
+
+    #[tokio::test]
+    async fn test_grpc_service_get_not_found_maps_to_status() {
+        let mock = MockUserService::default().with_find_by_id_result(Ok(None));
+        let service = create_test_service(mock);
+
+        let request = Request::new(GetUserRequest { id: 999 });
+
+        let result = service.get(request).await;
+
+        assert!(result.is_err());
+        let status = result.unwrap_err();
+        assert_eq!(status.code(), Code::NotFound);
+    }
+
+    #[tokio::test]
+    async fn test_grpc_service_get_by_token() {
+        let user = User::test_with_age(1, "John Doe", "john@example.com", 30);
+        let token = user.token;
+        let mock = MockUserService::default().with_find_by_token_result(Ok(Some(user)));
+        let service = create_test_service(mock);
+
+        let request = Request::new(GetUserByTokenRequest { token: token.to_string() });
+
+        let response = service.get_by_token(request).await.unwrap();
+        let proto_user = response.into_inner();
+
+        assert_eq!(proto_user.token, token.to_string());
+    }
+
+    #[tokio::test]
+    async fn test_grpc_service_update() {
+        let existing = User::test_with_age(1, "John Doe", "john@example.com", 30);
+        let updated = User::test_with_age(1, "John Updated", "john@example.com", 30);
+        let mock = MockUserService::default()
+            .with_find_by_id_result(Ok(Some(existing)))
+            .with_update_user_result(Ok(updated));
+        let service = create_test_service(mock);
+
+        let request = Request::new(UpdateUserRequest {
+            id: 1,
+            name: Some("John Updated".into()),
+            email: None,
+            age: None,
+        });
+
+        let response = service.update(request).await.unwrap();
+        let proto_user = response.into_inner();
+
+        assert_eq!(proto_user.name, "John Updated");
+    }
+
+    #[tokio::test]
+    async fn test_grpc_service_update_conflict_maps_to_status() {
+        let existing = User::test(1, "John Doe", "john@example.com");
+        let mock = MockUserService::default()
+            .with_find_by_id_result(Ok(Some(existing)))
+            .with_update_user_result(Err(Error::RepositoryError(RepositoryError::Conflict)));
+        let service = create_test_service(mock);
+
+        let request = Request::new(UpdateUserRequest {
+            id: 1,
+            name: Some("Updated".into()),
+            email: None,
+            age: None,
+        });
+
+        let result = service.update(request).await;
+
+        assert!(result.is_err());
+        let status = result.unwrap_err();
+        assert_eq!(status.code(), Code::AlreadyExists);
+    }
+
+    #[tokio::test]
+    async fn test_grpc_service_delete() {
+        let user = User::test_with_age(1, "John Doe", "john@example.com", 30);
+        let mock = MockUserService::default().with_delete_user_result(Ok(user));
+        let service = create_test_service(mock);
+
+        let request = Request::new(DeleteUserRequest { id: 1 });
+
+        let response = service.delete(request).await.unwrap();
+        let proto_user = response.into_inner();
+
+        assert_eq!(proto_user.id, 1);
+    }
+
+    #[tokio::test]
+    async fn test_grpc_service_delete_not_found_maps_to_status() {
+        let mock = MockUserService::default().with_delete_user_result(Err(Error::RepositoryError(RepositoryError::NotFound)));
+        let service = create_test_service(mock);
+
+        let request = Request::new(DeleteUserRequest { id: 999 });
+
+        let result = service.delete(request).await;
+
+        assert!(result.is_err());
+        let status = result.unwrap_err();
+        assert_eq!(status.code(), Code::NotFound);
+    }
+
+    #[tokio::test]
+    async fn test_grpc_service_list() {
+        let users = vec![
+            User::test_with_age(1, "John Doe", "john@example.com", 30),
+            User::test_with_age(2, "Jane Doe", "jane@example.com", 25),
+        ];
+        let mock = MockUserService::default().with_list_users_result(Ok(users));
+        let service = create_test_service(mock);
+
+        let request = Request::new(ListUsersRequest {
+            start_id: None,
+            page_size: None,
+        });
+
+        let response = service.list(request).await.unwrap();
+        let list_response = response.into_inner();
+
+        assert_eq!(list_response.users.len(), 2);
+    }
+}
+
 /// Client-side API (returns core domain types)
 pub mod api {
     use hex_play_core::{Error, models::User};

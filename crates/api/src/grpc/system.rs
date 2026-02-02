@@ -35,6 +35,78 @@ pub(crate) mod handler {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use tonic::Request;
+
+    use super::{GrpcSystemService, handler};
+    use crate::grpc::system_proto::{StatusRequest, system_service_server::SystemService};
+
+    // ===================
+    // Tests: handler::status
+    // ===================
+    #[tokio::test]
+    async fn test_handler_status_success() {
+        let request = StatusRequest { question: "Hello".into() };
+
+        let result = handler::status(request).await.unwrap();
+
+        assert_eq!(result.answer, "Hello: Answered");
+    }
+
+    #[tokio::test]
+    async fn test_handler_status_empty_question() {
+        let request = StatusRequest { question: String::new() };
+
+        let result = handler::status(request).await.unwrap();
+
+        assert_eq!(result.answer, ": Answered");
+    }
+
+    #[tokio::test]
+    async fn test_handler_status_long_question() {
+        let long_question = "a".repeat(1000);
+        let request = StatusRequest {
+            question: long_question.clone(),
+        };
+
+        let result = handler::status(request).await.unwrap();
+
+        assert_eq!(result.answer, format!("{}: Answered", long_question));
+    }
+
+    // ===================
+    // Tests: GrpcSystemService trait implementation
+    // ===================
+    #[tokio::test]
+    async fn test_grpc_service_status() {
+        let service = GrpcSystemService::new();
+
+        let request = Request::new(StatusRequest {
+            question: "Test Question".into(),
+        });
+
+        let response = service.status(request).await.unwrap();
+        let status_response = response.into_inner();
+
+        assert_eq!(status_response.answer, "Test Question: Answered");
+    }
+
+    #[tokio::test]
+    async fn test_grpc_service_status_with_special_characters() {
+        let service = GrpcSystemService::new();
+
+        let request = Request::new(StatusRequest {
+            question: "What's the status? 🚀".into(),
+        });
+
+        let response = service.status(request).await.unwrap();
+        let status_response = response.into_inner();
+
+        assert_eq!(status_response.answer, "What's the status? 🚀: Answered");
+    }
+}
+
 pub mod api {
     use hex_play_core::Error;
 
