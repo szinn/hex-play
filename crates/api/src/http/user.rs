@@ -154,118 +154,18 @@ async fn delete_user(Path(id): Path<i64>, State(core_services): State<Arc<CoreSe
 
 #[cfg(test)]
 mod tests {
-    use std::sync::{Arc, Mutex};
+    use std::sync::Arc;
 
     use axum::{
         Router,
         body::Body,
         http::{Request, StatusCode},
     };
-    use hex_play_core::{
-        Error, RepositoryError,
-        models::{NewUser, User},
-        services::{CoreServices, UserService},
-    };
+    use hex_play_core::{Error, RepositoryError, models::User, services::CoreServices, test_support::MockUserService};
     use tower::ServiceExt;
     use uuid::Uuid;
 
     use super::get_routes;
-
-    // ===================
-    // Mock UserService
-    // ===================
-    #[derive(Default)]
-    struct MockUserService {
-        add_user_result: Mutex<Option<Result<User, Error>>>,
-        update_user_result: Mutex<Option<Result<User, Error>>>,
-        delete_user_result: Mutex<Option<Result<User, Error>>>,
-        find_by_id_result: Mutex<Option<Result<Option<User>, Error>>>,
-        find_by_token_result: Mutex<Option<Result<Option<User>, Error>>>,
-        list_users_result: Mutex<Option<Result<Vec<User>, Error>>>,
-    }
-
-    impl MockUserService {
-        fn with_add_user_result(self, result: Result<User, Error>) -> Self {
-            *self.add_user_result.lock().unwrap() = Some(result);
-            self
-        }
-
-        fn with_update_user_result(self, result: Result<User, Error>) -> Self {
-            *self.update_user_result.lock().unwrap() = Some(result);
-            self
-        }
-
-        fn with_delete_user_result(self, result: Result<User, Error>) -> Self {
-            *self.delete_user_result.lock().unwrap() = Some(result);
-            self
-        }
-
-        fn with_find_by_id_result(self, result: Result<Option<User>, Error>) -> Self {
-            *self.find_by_id_result.lock().unwrap() = Some(result);
-            self
-        }
-
-        fn with_list_users_result(self, result: Result<Vec<User>, Error>) -> Self {
-            *self.list_users_result.lock().unwrap() = Some(result);
-            self
-        }
-
-        fn with_find_by_token_result(self, result: Result<Option<User>, Error>) -> Self {
-            *self.find_by_token_result.lock().unwrap() = Some(result);
-            self
-        }
-    }
-
-    #[async_trait::async_trait]
-    impl UserService for MockUserService {
-        async fn add_user(&self, _user: NewUser) -> Result<User, Error> {
-            self.add_user_result
-                .lock()
-                .unwrap()
-                .take()
-                .unwrap_or_else(|| Err(Error::Message("No mock result configured".into())))
-        }
-
-        async fn update_user(&self, _user: User) -> Result<User, Error> {
-            self.update_user_result
-                .lock()
-                .unwrap()
-                .take()
-                .unwrap_or_else(|| Err(Error::Message("No mock result configured".into())))
-        }
-
-        async fn list_users(&self, _start_id: Option<i64>, _page_size: Option<u64>) -> Result<Vec<User>, Error> {
-            self.list_users_result
-                .lock()
-                .unwrap()
-                .take()
-                .unwrap_or_else(|| Err(Error::Message("No mock result configured".into())))
-        }
-
-        async fn delete_user(&self, _id: i64) -> Result<User, Error> {
-            self.delete_user_result
-                .lock()
-                .unwrap()
-                .take()
-                .unwrap_or_else(|| Err(Error::Message("No mock result configured".into())))
-        }
-
-        async fn find_by_id(&self, _id: i64) -> Result<Option<User>, Error> {
-            self.find_by_id_result
-                .lock()
-                .unwrap()
-                .take()
-                .unwrap_or_else(|| Err(Error::Message("No mock result configured".into())))
-        }
-
-        async fn find_by_token(&self, _token: Uuid) -> Result<Option<User>, Error> {
-            self.find_by_token_result
-                .lock()
-                .unwrap()
-                .take()
-                .unwrap_or_else(|| Err(Error::Message("No mock result configured".into())))
-        }
-    }
 
     // ===================
     // Test Helpers

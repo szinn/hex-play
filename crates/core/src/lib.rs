@@ -3,6 +3,9 @@ pub mod models;
 pub mod repositories;
 pub mod services;
 
+#[cfg(feature = "test-support")]
+pub mod test_support;
+
 use std::sync::Arc;
 
 pub use error::{Error, ErrorKind, RepositoryError};
