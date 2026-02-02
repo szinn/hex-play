@@ -9,6 +9,7 @@ use crate::grpc::hex_play::{
     hex_play_server::{HexPlay, HexPlayServer},
 };
 
+mod error;
 pub mod system;
 
 pub(crate) mod hex_play {
@@ -23,9 +24,7 @@ pub(crate) struct GrpcSubsystem {
 impl HexPlay for GrpcSubsystem {
     #[tracing::instrument(level = "trace", skip(self))]
     async fn status(&self, request: Request<StatusRequest>) -> Result<Response<StatusResponse>, Status> {
-        let response = system::handler::status(request.into_inner())
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
+        let response = system::handler::status(request.into_inner()).await.map_err(error::map_core_error)?;
         Ok(Response::new(response))
     }
 }
