@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, sync::Arc};
+use std::sync::Arc;
 
 use axum::{
     Router,
@@ -7,12 +7,8 @@ use axum::{
     routing::get,
 };
 use hex_play_core::{Error, services::CoreServices};
-use hyper::body::Incoming;
-use hyper_util::rt::TokioIo;
-use tokio::net::TcpStream;
 use tokio_graceful_shutdown::{IntoSubsystem, SubsystemHandle};
-use tokio_util::{sync::CancellationToken, task::TaskTracker};
-use tower::{Service, ServiceBuilder};
+use tower::ServiceBuilder;
 use tower_http::{
     request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer},
     trace::TraceLayer,
@@ -56,65 +52,23 @@ impl IntoSubsystem<Error> for HttpSubsystem {
         let user_routes = user::get_routes(self.core_services.clone());
         let app = Router::new().route("/", get(hello_handler)).merge(user_routes).layer(middleware);
 
-        let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-        tracing::info!("listening on {}", listener.local_addr().unwrap());
+        let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.map_err(|e| Error::Any(Box::new(e)))?;
+        tracing::info!("listening on {}", listener.local_addr().map_err(|e| Error::Any(Box::new(e)))?);
 
-        let cancel_token = CancellationToken::new();
-        let connection_tracker = TaskTracker::new();
-
-        loop {
-            let (socket, remote_addr) = tokio::select! {
-                _ = subsys.on_shutdown_requested() => {
-                    break;
+        tokio::select! {
+            _ = subsys.on_shutdown_requested() => {
+                tracing::info!("HttpSubsystem shutting down...");
+            }
+            result = axum::serve(listener, app) => {
+                if let Err(e) = result {
+                    tracing::error!("HTTP server error: {}", e);
                 }
-
-                result = listener.accept() => {
-                    result.unwrap()
-                }
-            };
-
-            tracing::debug!("connection {} accepted", remote_addr);
-            let tower_service = app.clone();
-            let token = cancel_token.clone();
-            connection_tracker.spawn(async move {
-                if let Err(e) = handler(socket, remote_addr, tower_service, token).await {
-                    tracing::error!("Handler error for {}: {}", remote_addr, e);
-                }
-            });
+                subsys.request_shutdown();
+            }
         }
-
-        tracing::info!("HttpSubsystem shutting down...");
-        cancel_token.cancel();
-        tracing::info!("Connection tracker has {} active sessions", connection_tracker.len());
-        connection_tracker.close();
-        connection_tracker.wait().await;
-        tracing::info!("HttpSubsystem shut down");
 
         Ok(())
     }
-}
-
-async fn handler(socket: TcpStream, remote_addr: SocketAddr, tower_service: Router<()>, cancel_token: CancellationToken) -> Result<(), Error> {
-    let socket = TokioIo::new(socket);
-    let hyper_service = hyper::service::service_fn(move |request: Request<Incoming>| tower_service.clone().call(request));
-    let conn = hyper::server::conn::http1::Builder::new().serve_connection(socket, hyper_service);
-    let mut conn = std::pin::pin!(conn);
-
-    tokio::select! {
-        result = conn.as_mut() => {
-            if let Err(err) = result {
-                tracing::warn!("Failed to serve connection {}: {:#}", remote_addr, err);
-            }
-        }
-        _ = cancel_token.cancelled() => {
-            tracing::debug!("signal received, starting graceful shutdown");
-            conn.as_mut().graceful_shutdown();
-            let _ = conn.await;
-        }
-    }
-
-    tracing::debug!("Connection {} closed", remote_addr);
-    Ok(())
 }
 
 async fn hello_handler() -> Html<&'static str> {
