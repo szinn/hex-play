@@ -1,0 +1,14 @@
+syntax = "proto3";
+package hex_play;
+
+message StatusRequest {
+  string question = 1;
+}
+
+message StatusResponse {
+  string answer = 1;
+}
+
+service HexPlay {
+  rpc Status (StatusRequest) returns (StatusResponse);
+}

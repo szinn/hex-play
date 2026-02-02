@@ -23,7 +23,7 @@ mod user;
 
 const REQUEST_ID_HEADER: &str = "x-request-id";
 
-pub struct HttpSubsystem {
+pub(crate) struct HttpSubsystem {
     core_services: Arc<CoreServices>,
 }
 

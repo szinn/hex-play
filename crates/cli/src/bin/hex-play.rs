@@ -13,8 +13,12 @@ async fn main() -> Result<()> {
     match cli.command {
         Commands::Server => {
             init_logging()?;
-
             run_server_command(&config).await.context("Couldn't start server")?
+        }
+        Commands::Status { question } => {
+            let answer = hex_play_api::grpc::system::api::status(question).await?;
+
+            println!("Status: {}", answer);
         }
     }
     Ok(())

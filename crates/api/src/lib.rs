@@ -3,8 +3,9 @@ use std::sync::Arc;
 use hex_play_core::{Error, services::CoreServices};
 use tokio_graceful_shutdown::{IntoSubsystem, SubsystemBuilder, SubsystemHandle};
 
-use crate::http::HttpSubsystem;
+use crate::{grpc::GrpcSubsystem, http::HttpSubsystem};
 
+pub mod grpc;
 mod http;
 
 pub struct ApiSubsystem {
@@ -15,8 +16,10 @@ impl IntoSubsystem<Error> for ApiSubsystem {
     async fn run(self, subsys: &mut SubsystemHandle) -> Result<(), Error> {
         tracing::info!("ApiSubsystem starting...");
         let http_subsystem = HttpSubsystem::new(self.core_services.clone());
+        let grpc_subsystem = GrpcSubsystem::new(self.core_services.clone());
 
         subsys.start(SubsystemBuilder::new("Http", http_subsystem.into_subsystem()));
+        subsys.start(SubsystemBuilder::new("Grpc", grpc_subsystem.into_subsystem()));
 
         tracing::info!("ApiSubsystem started");
 

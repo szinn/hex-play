@@ -6,3 +6,4 @@ pipx_uvx = true
 "git-cliff" = "latest"
 "node" = "24"
 "prettier" = "latest"
+protobuf = "latest"

@@ -29,4 +29,7 @@ pub struct CommandLine {
 pub enum Commands {
     #[command(about = "Start server", display_order = 10)]
     Server,
+
+    #[command(about = "Server status check", display_order = 20)]
+    Status { question: String },
 }
