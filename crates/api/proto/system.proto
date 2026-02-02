@@ -1,5 +1,5 @@
 syntax = "proto3";
-package hex_play;
+package hex_play.system;
 
 message StatusRequest {
   string question = 1;
@@ -9,6 +9,6 @@ message StatusResponse {
   string answer = 1;
 }
 
-service HexPlay {
+service SystemService {
   rpc Status (StatusRequest) returns (StatusResponse);
 }

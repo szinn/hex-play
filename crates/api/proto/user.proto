@@ -1,0 +1,53 @@
+syntax = "proto3";
+package hex_play.user;
+
+message User {
+  int64 id = 1;
+  string token = 2;
+  string name = 3;
+  string email = 4;
+  int32 age = 5;
+}
+
+message CreateUserRequest {
+  string name = 1;
+  string email = 2;
+  int32 age = 3;
+}
+
+message GetUserRequest {
+  int64 id = 1;
+}
+
+message GetUserByTokenRequest {
+  string token = 1;
+}
+
+message UpdateUserRequest {
+  int64 id = 1;
+  optional string name = 2;
+  optional string email = 3;
+  optional int32 age = 4;
+}
+
+message DeleteUserRequest {
+  int64 id = 1;
+}
+
+message ListUsersRequest {
+  optional int64 start_id = 1;
+  optional uint64 page_size = 2;
+}
+
+message ListUsersResponse {
+  repeated User users = 1;
+}
+
+service UserService {
+  rpc Create (CreateUserRequest) returns (User);
+  rpc Get (GetUserRequest) returns (User);
+  rpc GetByToken (GetUserByTokenRequest) returns (User);
+  rpc Update (UpdateUserRequest) returns (User);
+  rpc Delete (DeleteUserRequest) returns (User);
+  rpc List (ListUsersRequest) returns (ListUsersResponse);
+}
