@@ -39,7 +39,7 @@ pub async fn run_server_command(config: &Config) -> anyhow::Result<()> {
 
     server.await?;
 
-    repository_service.repository.close().await.context("Couldn't close database")?;
+    repository_service.repository().close().await.context("Couldn't close database")?;
 
     Ok(())
 }

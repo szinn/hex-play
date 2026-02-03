@@ -30,11 +30,7 @@ pub async fn create_repository_service(database: DatabaseConnection) -> Result<A
     let user_repository = UserRepositoryAdapter::new();
     let user_info_repository = UserInfoRepositoryAdapter::new();
 
-    let repository_service = RepositoryService {
-        repository: Arc::new(repository),
-        user_repository: Arc::new(user_repository),
-        user_info_repository: Arc::new(user_info_repository),
-    };
+    let repository_service = RepositoryService::new(Arc::new(repository), Arc::new(user_repository), Arc::new(user_info_repository));
 
     Ok(Arc::new(repository_service))
 }
@@ -69,10 +65,10 @@ pub mod test_support {
         let user_repository = UserRepositoryAdapter::new();
         let user_info_repository = UserInfoRepositoryAdapter::new();
 
-        Arc::new(RepositoryService {
-            repository: Arc::new(repository),
-            user_repository: Arc::new(user_repository),
-            user_info_repository: Arc::new(user_info_repository),
-        })
+        Arc::new(RepositoryService::new(
+            Arc::new(repository),
+            Arc::new(user_repository),
+            Arc::new(user_info_repository),
+        ))
     }
 }

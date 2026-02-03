@@ -9,9 +9,36 @@ pub use user_info::UserInfoRepository;
 use crate::Error;
 
 pub struct RepositoryService {
-    pub repository: Arc<dyn Repository>,
-    pub user_repository: Arc<dyn UserRepository>,
-    pub user_info_repository: Arc<dyn UserInfoRepository>,
+    repository: Arc<dyn Repository>,
+    user_repository: Arc<dyn UserRepository>,
+    user_info_repository: Arc<dyn UserInfoRepository>,
+}
+
+impl RepositoryService {
+    /// Creates a new RepositoryService with the provided repository
+    /// implementations.
+    pub fn new(repository: Arc<dyn Repository>, user_repository: Arc<dyn UserRepository>, user_info_repository: Arc<dyn UserInfoRepository>) -> Self {
+        Self {
+            repository,
+            user_repository,
+            user_info_repository,
+        }
+    }
+
+    /// Returns a reference to the main repository for transaction management.
+    pub fn repository(&self) -> &Arc<dyn Repository> {
+        &self.repository
+    }
+
+    /// Returns a reference to the user repository.
+    pub fn user_repository(&self) -> &Arc<dyn UserRepository> {
+        &self.user_repository
+    }
+
+    /// Returns a reference to the user info repository.
+    pub fn user_info_repository(&self) -> &Arc<dyn UserInfoRepository> {
+        &self.user_info_repository
+    }
 }
 
 #[async_trait::async_trait]
@@ -43,8 +70,8 @@ pub trait Transaction: Any + Send + Sync {
 #[macro_export]
 macro_rules! with_transaction {
     ($self:expr, $($repo:ident),+ , |$tx:ident| $body:expr) => {{
-        $(let $repo = $self.repository_service.$repo.clone();)+
-        $crate::repositories::transaction(&*$self.repository_service.repository, |$tx| Box::pin(async move { $body })).await
+        $(let $repo = $self.repository_service.$repo().clone();)+
+        $crate::repositories::transaction(&**$self.repository_service.repository(), |$tx| Box::pin(async move { $body })).await
     }};
 }
 
@@ -70,8 +97,8 @@ macro_rules! with_transaction {
 #[macro_export]
 macro_rules! with_read_only_transaction {
     ($self:expr, $($repo:ident),+ , |$tx:ident| $body:expr) => {{
-        $(let $repo = $self.repository_service.$repo.clone();)+
-        $crate::repositories::read_only_transaction(&*$self.repository_service.repository, |$tx| Box::pin(async move { $body })).await
+        $(let $repo = $self.repository_service.$repo().clone();)+
+        $crate::repositories::read_only_transaction(&**$self.repository_service.repository(), |$tx| Box::pin(async move { $body })).await
     }};
 }
 

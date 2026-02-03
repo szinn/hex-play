@@ -17,7 +17,7 @@ impl<'a> TransactionImpl {
     pub(crate) fn get_db_transaction(tx: &'a dyn Transaction) -> Result<&'a DatabaseTransaction, Error> {
         match tx.as_any().downcast_ref::<TransactionImpl>() {
             Some(transaction) => Ok(&transaction.transaction),
-            _ => Err(Error::Message("Invalid transaction type".into())),
+            _ => Err(Error::InvalidTransactionType),
         }
     }
 }

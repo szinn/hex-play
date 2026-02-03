@@ -28,7 +28,7 @@ impl GrpcSubsystem {
 
 impl IntoSubsystem<Error> for GrpcSubsystem {
     async fn run(self, subsys: &mut SubsystemHandle) -> Result<(), Error> {
-        let addr = "0.0.0.0:3001".parse().map_err(|_| Error::Message("Can't parse address".into()))?;
+        let addr = "0.0.0.0:3001".parse().map_err(|_| Error::AddressParse("0.0.0.0:3001".into()))?;
 
         let system_service = system::GrpcSystemService::new();
         let user_service = user::GrpcUserService::new(self.core_services.clone());

@@ -116,10 +116,10 @@ pub mod api {
     pub async fn status(question: String) -> Result<String, Error> {
         let mut client = SystemServiceClient::connect("http://localhost:3001")
             .await
-            .map_err(|e| Error::Any(Box::new(e)))?;
+            .map_err(|e| Error::GrpcClientError(e.to_string()))?;
 
         let request = tonic::Request::new(StatusRequest { question });
-        let response: StatusResponse = client.status(request).await.map_err(|e| Error::Any(Box::new(e)))?.into_inner();
+        let response: StatusResponse = client.status(request).await.map_err(|e| Error::GrpcClientError(e.to_string()))?.into_inner();
 
         Ok(response.answer)
     }

@@ -1,14 +1,14 @@
 //! Test utilities for mocking core services.
 //! Only compiled when the `test-support` feature is enabled.
 
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use uuid::Uuid;
 
 use crate::{
     Error,
     models::{NewUser, User},
-    services::UserService,
+    services::{CoreServices, UserService},
 };
 
 /// A mock implementation of [`UserService`] for testing.
@@ -68,47 +68,62 @@ impl UserService for MockUserService {
         self.add_user_result
             .lock()
             .unwrap()
-            .take()
-            .unwrap_or_else(|| Err(Error::Message("No mock result configured".into())))
+            .clone()
+            .unwrap_or_else(|| Err(Error::MockNotConfigured("add_user")))
     }
 
     async fn update_user(&self, _user: User) -> Result<User, Error> {
         self.update_user_result
             .lock()
             .unwrap()
-            .take()
-            .unwrap_or_else(|| Err(Error::Message("No mock result configured".into())))
+            .clone()
+            .unwrap_or_else(|| Err(Error::MockNotConfigured("update_user")))
     }
 
     async fn list_users(&self, _start_id: Option<i64>, _page_size: Option<u64>) -> Result<Vec<User>, Error> {
         self.list_users_result
             .lock()
             .unwrap()
-            .take()
-            .unwrap_or_else(|| Err(Error::Message("No mock result configured".into())))
+            .clone()
+            .unwrap_or_else(|| Err(Error::MockNotConfigured("list_users")))
     }
 
     async fn delete_user(&self, _id: i64) -> Result<User, Error> {
         self.delete_user_result
             .lock()
             .unwrap()
-            .take()
-            .unwrap_or_else(|| Err(Error::Message("No mock result configured".into())))
+            .clone()
+            .unwrap_or_else(|| Err(Error::MockNotConfigured("delete_user")))
     }
 
     async fn find_by_id(&self, _id: i64) -> Result<Option<User>, Error> {
         self.find_by_id_result
             .lock()
             .unwrap()
-            .take()
-            .unwrap_or_else(|| Err(Error::Message("No mock result configured".into())))
+            .clone()
+            .unwrap_or_else(|| Err(Error::MockNotConfigured("find_by_id")))
     }
 
     async fn find_by_token(&self, _token: Uuid) -> Result<Option<User>, Error> {
         self.find_by_token_result
             .lock()
             .unwrap()
-            .take()
-            .unwrap_or_else(|| Err(Error::Message("No mock result configured".into())))
+            .clone()
+            .unwrap_or_else(|| Err(Error::MockNotConfigured("find_by_token")))
     }
+}
+
+/// Creates a CoreServices instance with the given mock UserService.
+///
+/// This is a convenience function for tests that need a CoreServices.
+pub fn create_core_services_with_mock(mock: MockUserService) -> CoreServices {
+    CoreServices { user_service: Arc::new(mock) }
+}
+
+/// Creates an Arc-wrapped CoreServices instance with the given mock
+/// UserService.
+///
+/// This is a convenience function for tests that need an Arc<CoreServices>.
+pub fn create_arc_core_services_with_mock(mock: MockUserService) -> Arc<CoreServices> {
+    Arc::new(create_core_services_with_mock(mock))
 }

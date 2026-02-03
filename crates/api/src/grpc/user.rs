@@ -63,7 +63,11 @@ impl UserService for GrpcUserService {
 
 /// Server-side handlers (business logic)
 pub(crate) mod handler {
-    use hex_play_core::{Error, RepositoryError, models::NewUser, services::CoreServices};
+    use hex_play_core::{
+        Error, RepositoryError,
+        models::{NewUser, PartialUserUpdate},
+        services::CoreServices,
+    };
     use uuid::Uuid;
 
     use crate::grpc::user_proto::{
@@ -100,7 +104,7 @@ pub(crate) mod handler {
     }
 
     pub(crate) async fn get_by_token(core_services: &CoreServices, request: GetUserByTokenRequest) -> Result<ProtoUser, Error> {
-        let token = request.token.parse::<Uuid>().map_err(|e| Error::Message(format!("Invalid UUID: {}", e)))?;
+        let token = request.token.parse::<Uuid>().map_err(|e| Error::InvalidUuid(e.to_string()))?;
         let user = core_services
             .user_service
             .find_by_token(token)
@@ -116,15 +120,12 @@ pub(crate) mod handler {
             .await?
             .ok_or(Error::RepositoryError(RepositoryError::NotFound))?;
 
-        if let Some(name) = request.name {
-            user.name = name;
-        }
-        if let Some(email) = request.email {
-            user.email = email;
-        }
-        if let Some(age) = request.age {
-            user.age = age as i16;
-        }
+        let update = PartialUserUpdate {
+            name: request.name,
+            email: request.email,
+            age: request.age.map(|a| a as i16),
+        };
+        update.apply_to(&mut user);
 
         let user = core_services.user_service.update_user(user).await?;
         Ok(to_proto(user))
@@ -149,9 +150,11 @@ pub(crate) mod handler {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
-    use hex_play_core::{Error, RepositoryError, models::User, services::CoreServices, test_support::MockUserService};
+    use hex_play_core::{
+        Error, RepositoryError,
+        models::User,
+        test_support::{MockUserService, create_arc_core_services_with_mock, create_core_services_with_mock},
+    };
     use tonic::{Code, Request};
     use uuid::Uuid;
 
@@ -164,12 +167,7 @@ mod tests {
     // Test Helpers
     // ===================
     fn create_test_service(mock: MockUserService) -> GrpcUserService {
-        let core_services = Arc::new(CoreServices { user_service: Arc::new(mock) });
-        GrpcUserService::new(core_services)
-    }
-
-    fn create_core_services(mock: MockUserService) -> CoreServices {
-        CoreServices { user_service: Arc::new(mock) }
+        GrpcUserService::new(create_arc_core_services_with_mock(mock))
     }
 
     // ===================
@@ -179,7 +177,7 @@ mod tests {
     async fn test_handler_create_success() {
         let user = User::test_with_age(1, "John Doe", "john@example.com", 30);
         let mock = MockUserService::default().with_add_user_result(Ok(user.clone()));
-        let core_services = create_core_services(mock);
+        let core_services = create_core_services_with_mock(mock);
 
         let request = CreateUserRequest {
             name: "John Doe".into(),
@@ -199,7 +197,7 @@ mod tests {
     async fn test_handler_create_with_zero_age() {
         let user = User::test(1, "John Doe", "john@example.com");
         let mock = MockUserService::default().with_add_user_result(Ok(user));
-        let core_services = create_core_services(mock);
+        let core_services = create_core_services_with_mock(mock);
 
         let request = CreateUserRequest {
             name: "John Doe".into(),
@@ -215,7 +213,7 @@ mod tests {
     #[tokio::test]
     async fn test_handler_create_constraint_violation() {
         let mock = MockUserService::default().with_add_user_result(Err(Error::RepositoryError(RepositoryError::Constraint("duplicate email".into()))));
-        let core_services = create_core_services(mock);
+        let core_services = create_core_services_with_mock(mock);
 
         let request = CreateUserRequest {
             name: "John Doe".into(),
@@ -235,7 +233,7 @@ mod tests {
     async fn test_handler_get_success() {
         let user = User::test_with_age(1, "John Doe", "john@example.com", 30);
         let mock = MockUserService::default().with_find_by_id_result(Ok(Some(user)));
-        let core_services = create_core_services(mock);
+        let core_services = create_core_services_with_mock(mock);
 
         let request = GetUserRequest { id: 1 };
 
@@ -250,7 +248,7 @@ mod tests {
     #[tokio::test]
     async fn test_handler_get_not_found() {
         let mock = MockUserService::default().with_find_by_id_result(Ok(None));
-        let core_services = create_core_services(mock);
+        let core_services = create_core_services_with_mock(mock);
 
         let request = GetUserRequest { id: 999 };
 
@@ -264,7 +262,7 @@ mod tests {
     #[tokio::test]
     async fn test_handler_get_invalid_id() {
         let mock = MockUserService::default().with_find_by_id_result(Err(Error::InvalidId(-1)));
-        let core_services = create_core_services(mock);
+        let core_services = create_core_services_with_mock(mock);
 
         let request = GetUserRequest { id: -1 };
 
@@ -281,7 +279,7 @@ mod tests {
         let user = User::test_with_age(1, "John Doe", "john@example.com", 30);
         let token = user.token;
         let mock = MockUserService::default().with_find_by_token_result(Ok(Some(user)));
-        let core_services = create_core_services(mock);
+        let core_services = create_core_services_with_mock(mock);
 
         let request = GetUserByTokenRequest { token: token.to_string() };
 
@@ -294,7 +292,7 @@ mod tests {
     #[tokio::test]
     async fn test_handler_get_by_token_not_found() {
         let mock = MockUserService::default().with_find_by_token_result(Ok(None));
-        let core_services = create_core_services(mock);
+        let core_services = create_core_services_with_mock(mock);
 
         let token = Uuid::new_v4();
         let request = GetUserByTokenRequest { token: token.to_string() };
@@ -307,7 +305,7 @@ mod tests {
     #[tokio::test]
     async fn test_handler_get_by_token_invalid_uuid() {
         let mock = MockUserService::default();
-        let core_services = create_core_services(mock);
+        let core_services = create_core_services_with_mock(mock);
 
         let request = GetUserByTokenRequest { token: "not-a-uuid".into() };
 
@@ -326,7 +324,7 @@ mod tests {
         let mock = MockUserService::default()
             .with_find_by_id_result(Ok(Some(existing)))
             .with_update_user_result(Ok(updated));
-        let core_services = create_core_services(mock);
+        let core_services = create_core_services_with_mock(mock);
 
         let request = UpdateUserRequest {
             id: 1,
@@ -348,7 +346,7 @@ mod tests {
         let mock = MockUserService::default()
             .with_find_by_id_result(Ok(Some(existing)))
             .with_update_user_result(Ok(updated));
-        let core_services = create_core_services(mock);
+        let core_services = create_core_services_with_mock(mock);
 
         let request = UpdateUserRequest {
             id: 1,
@@ -369,7 +367,7 @@ mod tests {
         let mock = MockUserService::default()
             .with_find_by_id_result(Ok(Some(existing)))
             .with_update_user_result(Ok(updated));
-        let core_services = create_core_services(mock);
+        let core_services = create_core_services_with_mock(mock);
 
         let request = UpdateUserRequest {
             id: 1,
@@ -386,7 +384,7 @@ mod tests {
     #[tokio::test]
     async fn test_handler_update_not_found() {
         let mock = MockUserService::default().with_find_by_id_result(Ok(None));
-        let core_services = create_core_services(mock);
+        let core_services = create_core_services_with_mock(mock);
 
         let request = UpdateUserRequest {
             id: 999,
@@ -406,7 +404,7 @@ mod tests {
         let mock = MockUserService::default()
             .with_find_by_id_result(Ok(Some(existing)))
             .with_update_user_result(Err(Error::RepositoryError(RepositoryError::Conflict)));
-        let core_services = create_core_services(mock);
+        let core_services = create_core_services_with_mock(mock);
 
         let request = UpdateUserRequest {
             id: 1,
@@ -427,7 +425,7 @@ mod tests {
     async fn test_handler_delete_success() {
         let user = User::test_with_age(1, "John Doe", "john@example.com", 30);
         let mock = MockUserService::default().with_delete_user_result(Ok(user));
-        let core_services = create_core_services(mock);
+        let core_services = create_core_services_with_mock(mock);
 
         let request = DeleteUserRequest { id: 1 };
 
@@ -441,7 +439,7 @@ mod tests {
     #[tokio::test]
     async fn test_handler_delete_not_found() {
         let mock = MockUserService::default().with_delete_user_result(Err(Error::RepositoryError(RepositoryError::NotFound)));
-        let core_services = create_core_services(mock);
+        let core_services = create_core_services_with_mock(mock);
 
         let request = DeleteUserRequest { id: 999 };
 
@@ -460,7 +458,7 @@ mod tests {
             User::test_with_age(2, "Jane Doe", "jane@example.com", 25),
         ];
         let mock = MockUserService::default().with_list_users_result(Ok(users));
-        let core_services = create_core_services(mock);
+        let core_services = create_core_services_with_mock(mock);
 
         let request = ListUsersRequest {
             start_id: None,
@@ -477,7 +475,7 @@ mod tests {
     #[tokio::test]
     async fn test_handler_list_empty() {
         let mock = MockUserService::default().with_list_users_result(Ok(vec![]));
-        let core_services = create_core_services(mock);
+        let core_services = create_core_services_with_mock(mock);
 
         let request = ListUsersRequest {
             start_id: None,
@@ -493,7 +491,7 @@ mod tests {
     async fn test_handler_list_with_pagination() {
         let users = vec![User::test(5, "User Five", "five@example.com")];
         let mock = MockUserService::default().with_list_users_result(Ok(users));
-        let core_services = create_core_services(mock);
+        let core_services = create_core_services_with_mock(mock);
 
         let request = ListUsersRequest {
             start_id: Some(5),
@@ -508,7 +506,7 @@ mod tests {
     #[tokio::test]
     async fn test_handler_list_invalid_start_id() {
         let mock = MockUserService::default().with_list_users_result(Err(Error::InvalidId(-1)));
-        let core_services = create_core_services(mock);
+        let core_services = create_core_services_with_mock(mock);
 
         let request = ListUsersRequest {
             start_id: Some(-1),
@@ -709,7 +707,7 @@ pub mod api {
     fn from_proto(proto: ProtoUser) -> Result<User, Error> {
         Ok(User {
             id: proto.id,
-            token: proto.token.parse::<Uuid>().map_err(|e| Error::Message(format!("Invalid UUID: {}", e)))?,
+            token: proto.token.parse::<Uuid>().map_err(|e| Error::InvalidUuid(e.to_string()))?,
             name: proto.name,
             email: proto.email,
             age: proto.age as i16,
@@ -719,54 +717,70 @@ pub mod api {
 
     #[tracing::instrument(level = "trace")]
     pub async fn create(name: String, email: String, age: i16) -> Result<User, Error> {
-        let mut client = UserServiceClient::connect("http://localhost:3001").await.map_err(|e| Error::Any(Box::new(e)))?;
+        let mut client = UserServiceClient::connect("http://localhost:3001")
+            .await
+            .map_err(|e| Error::GrpcClientError(e.to_string()))?;
         let request = tonic::Request::new(CreateUserRequest { name, email, age: age as i32 });
-        let response = client.create(request).await.map_err(|e| Error::Any(Box::new(e)))?.into_inner();
+        let response = client.create(request).await.map_err(|e| Error::GrpcClientError(e.to_string()))?.into_inner();
         from_proto(response)
     }
 
     #[tracing::instrument(level = "trace")]
     pub async fn get(id: i64) -> Result<User, Error> {
-        let mut client = UserServiceClient::connect("http://localhost:3001").await.map_err(|e| Error::Any(Box::new(e)))?;
+        let mut client = UserServiceClient::connect("http://localhost:3001")
+            .await
+            .map_err(|e| Error::GrpcClientError(e.to_string()))?;
         let request = tonic::Request::new(GetUserRequest { id });
-        let response = client.get(request).await.map_err(|e| Error::Any(Box::new(e)))?.into_inner();
+        let response = client.get(request).await.map_err(|e| Error::GrpcClientError(e.to_string()))?.into_inner();
         from_proto(response)
     }
 
     #[tracing::instrument(level = "trace")]
     pub async fn get_by_token(token: Uuid) -> Result<User, Error> {
-        let mut client = UserServiceClient::connect("http://localhost:3001").await.map_err(|e| Error::Any(Box::new(e)))?;
+        let mut client = UserServiceClient::connect("http://localhost:3001")
+            .await
+            .map_err(|e| Error::GrpcClientError(e.to_string()))?;
         let request = tonic::Request::new(GetUserByTokenRequest { token: token.to_string() });
-        let response = client.get_by_token(request).await.map_err(|e| Error::Any(Box::new(e)))?.into_inner();
+        let response = client
+            .get_by_token(request)
+            .await
+            .map_err(|e| Error::GrpcClientError(e.to_string()))?
+            .into_inner();
         from_proto(response)
     }
 
     #[tracing::instrument(level = "trace")]
     pub async fn update(id: i64, name: Option<String>, email: Option<String>, age: Option<i16>) -> Result<User, Error> {
-        let mut client = UserServiceClient::connect("http://localhost:3001").await.map_err(|e| Error::Any(Box::new(e)))?;
+        let mut client = UserServiceClient::connect("http://localhost:3001")
+            .await
+            .map_err(|e| Error::GrpcClientError(e.to_string()))?;
         let request = tonic::Request::new(UpdateUserRequest {
             id,
             name,
             email,
             age: age.map(|a| a as i32),
         });
-        let response = client.update(request).await.map_err(|e| Error::Any(Box::new(e)))?.into_inner();
+        let response = client.update(request).await.map_err(|e| Error::GrpcClientError(e.to_string()))?.into_inner();
         from_proto(response)
     }
 
     #[tracing::instrument(level = "trace")]
     pub async fn delete(id: i64) -> Result<User, Error> {
-        let mut client = UserServiceClient::connect("http://localhost:3001").await.map_err(|e| Error::Any(Box::new(e)))?;
+        let mut client = UserServiceClient::connect("http://localhost:3001")
+            .await
+            .map_err(|e| Error::GrpcClientError(e.to_string()))?;
         let request = tonic::Request::new(DeleteUserRequest { id });
-        let response = client.delete(request).await.map_err(|e| Error::Any(Box::new(e)))?.into_inner();
+        let response = client.delete(request).await.map_err(|e| Error::GrpcClientError(e.to_string()))?.into_inner();
         from_proto(response)
     }
 
     #[tracing::instrument(level = "trace")]
     pub async fn list(start_id: Option<i64>, page_size: Option<u64>) -> Result<Vec<User>, Error> {
-        let mut client = UserServiceClient::connect("http://localhost:3001").await.map_err(|e| Error::Any(Box::new(e)))?;
+        let mut client = UserServiceClient::connect("http://localhost:3001")
+            .await
+            .map_err(|e| Error::GrpcClientError(e.to_string()))?;
         let request = tonic::Request::new(ListUsersRequest { start_id, page_size });
-        let response = client.list(request).await.map_err(|e| Error::Any(Box::new(e)))?.into_inner();
+        let response = client.list(request).await.map_err(|e| Error::GrpcClientError(e.to_string()))?.into_inner();
         response.users.into_iter().map(from_proto).collect()
     }
 }

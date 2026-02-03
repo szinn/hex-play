@@ -211,52 +211,52 @@ mod tests {
             self.add_user_result
                 .lock()
                 .unwrap()
-                .take()
-                .unwrap_or_else(|| Err(Error::Message("No mock result configured".into())))
+                .clone()
+                .unwrap_or_else(|| Err(Error::MockNotConfigured("add_user")))
         }
 
         async fn update_user(&self, _tx: &dyn Transaction, _user: User) -> Result<User, Error> {
             self.update_user_result
                 .lock()
                 .unwrap()
-                .take()
-                .unwrap_or_else(|| Err(Error::Message("No mock result configured".into())))
+                .clone()
+                .unwrap_or_else(|| Err(Error::MockNotConfigured("update_user")))
         }
 
         async fn delete_user(&self, _tx: &dyn Transaction, _user: User) -> Result<User, Error> {
             self.delete_user_result
                 .lock()
                 .unwrap()
-                .take()
-                .unwrap_or_else(|| Err(Error::Message("No mock result configured".into())))
+                .clone()
+                .unwrap_or_else(|| Err(Error::MockNotConfigured("delete_user")))
         }
 
         async fn list_users(&self, _tx: &dyn Transaction, _start_id: Option<i64>, _page_size: Option<u64>) -> Result<Vec<User>, Error> {
             self.list_users_result
                 .lock()
                 .unwrap()
-                .take()
-                .unwrap_or_else(|| Err(Error::Message("No mock result configured".into())))
+                .clone()
+                .unwrap_or_else(|| Err(Error::MockNotConfigured("list_users")))
         }
 
         async fn find_by_id(&self, _tx: &dyn Transaction, _id: i64) -> Result<Option<User>, Error> {
             self.find_by_id_result
                 .lock()
                 .unwrap()
-                .take()
-                .unwrap_or_else(|| Err(Error::Message("No mock result configured".into())))
+                .clone()
+                .unwrap_or_else(|| Err(Error::MockNotConfigured("find_by_id")))
         }
 
         async fn find_by_email(&self, _tx: &dyn Transaction, _email: &str) -> Result<Option<User>, Error> {
-            Err(Error::Message("Not implemented in mock".into()))
+            Err(Error::MockNotConfigured("find_by_email"))
         }
 
         async fn find_by_token(&self, _tx: &dyn Transaction, _token: Uuid) -> Result<Option<User>, Error> {
             self.find_by_token_result
                 .lock()
                 .unwrap()
-                .take()
-                .unwrap_or_else(|| Err(Error::Message("No mock result configured".into())))
+                .clone()
+                .unwrap_or_else(|| Err(Error::MockNotConfigured("find_by_token")))
         }
     }
 
@@ -290,15 +290,15 @@ mod tests {
     #[async_trait::async_trait]
     impl UserInfoRepository for MockUserInfoRepository {
         async fn add_info(&self, _tx: &dyn Transaction, _user_token: Uuid, _age: i16) -> Result<UserInfo, Error> {
-            self.add_info_result.lock().unwrap().take().unwrap_or_else(|| Ok(UserInfo::default()))
+            self.add_info_result.lock().unwrap().clone().unwrap_or_else(|| Ok(UserInfo::default()))
         }
 
         async fn update_info(&self, _tx: &dyn Transaction, _user_token: Uuid, _age: i16) -> Result<UserInfo, Error> {
-            self.update_info_result.lock().unwrap().take().unwrap_or_else(|| Ok(UserInfo::default()))
+            self.update_info_result.lock().unwrap().clone().unwrap_or_else(|| Ok(UserInfo::default()))
         }
 
         async fn find_by_token(&self, _tx: &dyn Transaction, _user_token: Uuid) -> Result<Option<UserInfo>, Error> {
-            self.find_by_token_result.lock().unwrap().take().unwrap_or_else(|| Ok(None))
+            self.find_by_token_result.lock().unwrap().clone().unwrap_or_else(|| Ok(None))
         }
     }
 
@@ -310,11 +310,11 @@ mod tests {
     }
 
     fn create_use_cases_with_info(mock_user_repository: MockUserRepository, mock_user_info_repository: MockUserInfoRepository) -> UserServiceImpl {
-        let repository_service = Arc::new(RepositoryService {
-            repository: Arc::new(MockRepository),
-            user_repository: Arc::new(mock_user_repository),
-            user_info_repository: Arc::new(mock_user_info_repository),
-        });
+        let repository_service = Arc::new(RepositoryService::new(
+            Arc::new(MockRepository),
+            Arc::new(mock_user_repository),
+            Arc::new(mock_user_info_repository),
+        ));
         UserServiceImpl::new(repository_service)
     }
 

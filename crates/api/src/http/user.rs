@@ -7,7 +7,7 @@ use axum::{
     routing::{get, post},
 };
 use hex_play_core::{
-    models::{NewUser, User},
+    models::{NewUser, PartialUserUpdate, User},
     services::CoreServices,
 };
 use serde::{Deserialize, Serialize};
@@ -124,6 +124,16 @@ struct UpdateUserRequest {
     age: Option<i16>,
 }
 
+impl From<UpdateUserRequest> for PartialUserUpdate {
+    fn from(req: UpdateUserRequest) -> Self {
+        Self {
+            name: req.name,
+            email: req.email,
+            age: req.age,
+        }
+    }
+}
+
 #[tracing::instrument(level = "trace", skip(core_services))]
 async fn update_user(
     Path(id): Path<i64>,
@@ -132,15 +142,8 @@ async fn update_user(
 ) -> Result<Json<UserResponse>, Error> {
     let mut user = core_services.user_service.find_by_id(id).await.map_err(Error::Core)?.ok_or(Error::NotFound)?;
 
-    if let Some(name) = request.name {
-        user.name = name;
-    }
-    if let Some(email) = request.email {
-        user.email = email;
-    }
-    if let Some(age) = request.age {
-        user.age = age;
-    }
+    let update: PartialUserUpdate = request.into();
+    update.apply_to(&mut user);
 
     let user = core_services.user_service.update_user(user).await.map_err(Error::Core)?;
     Ok(Json(user.into()))
@@ -154,14 +157,16 @@ async fn delete_user(Path(id): Path<i64>, State(core_services): State<Arc<CoreSe
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
     use axum::{
         Router,
         body::Body,
         http::{Request, StatusCode},
     };
-    use hex_play_core::{Error, RepositoryError, models::User, services::CoreServices, test_support::MockUserService};
+    use hex_play_core::{
+        Error, RepositoryError,
+        models::User,
+        test_support::{MockUserService, create_arc_core_services_with_mock},
+    };
     use tower::ServiceExt;
     use uuid::Uuid;
 
@@ -171,8 +176,7 @@ mod tests {
     // Test Helpers
     // ===================
     fn create_test_app(mock: MockUserService) -> Router {
-        let core_services = Arc::new(CoreServices { user_service: Arc::new(mock) });
-        get_routes(core_services)
+        get_routes(create_arc_core_services_with_mock(mock))
     }
 
     async fn body_to_string(body: Body) -> String {

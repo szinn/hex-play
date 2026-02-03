@@ -13,40 +13,56 @@ pub enum ErrorKind {
     InternalError,
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, thiserror::Error)]
 pub enum Error {
-    #[error("{0}")]
-    Message(String),
-
     #[error("Invalid ID: {0}")]
     InvalidId(i64),
 
     #[error("Invalid page size: {0}")]
     InvalidPageSize(u64),
 
+    #[error("Validation error: {0}")]
+    Validation(String),
+
+    #[error("Failed to parse address: {0}")]
+    AddressParse(String),
+
+    #[error("Invalid transaction type")]
+    InvalidTransactionType,
+
+    #[error("Invalid UUID: {0}")]
+    InvalidUuid(String),
+
+    #[error("Network error: {0}")]
+    NetworkError(String),
+
+    #[error("gRPC client error: {0}")]
+    GrpcClientError(String),
+
     #[error(transparent)]
     RepositoryError(#[from] RepositoryError),
 
-    #[error(transparent)]
-    Any(#[from] Box<dyn std::error::Error + Send + Sync>),
+    #[cfg(any(test, feature = "test-support"))]
+    #[error("Mock not configured: {0}")]
+    MockNotConfigured(&'static str),
 }
 
 impl Error {
     /// Returns the error kind for HTTP response mapping.
     pub fn kind(&self) -> ErrorKind {
         match self {
-            Error::Message(_) | Error::Any(_) => ErrorKind::InternalError,
-            Error::InvalidId(_) | Error::InvalidPageSize(_) => ErrorKind::BadRequest,
+            Error::InvalidId(_) | Error::InvalidPageSize(_) | Error::InvalidUuid(_) => ErrorKind::BadRequest,
+            Error::Validation(_) => ErrorKind::ValidationError,
+            Error::AddressParse(_) | Error::InvalidTransactionType | Error::NetworkError(_) | Error::GrpcClientError(_) => ErrorKind::InternalError,
             Error::RepositoryError(e) => e.kind(),
+            #[cfg(any(test, feature = "test-support"))]
+            Error::MockNotConfigured(_) => ErrorKind::InternalError,
         }
     }
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, thiserror::Error)]
 pub enum RepositoryError {
-    #[error("{0}")]
-    Message(String),
-
     #[error("Constraint Error - {0}")]
     Constraint(String),
 
@@ -59,8 +75,11 @@ pub enum RepositoryError {
     #[error("Read-only Transaction")]
     ReadOnly,
 
-    #[error(transparent)]
-    Any(#[from] Box<dyn std::error::Error + Send + Sync>),
+    #[error("Database error: {0}")]
+    Database(String),
+
+    #[error("Query canceled")]
+    QueryCanceled,
 }
 
 impl RepositoryError {
@@ -70,7 +89,7 @@ impl RepositoryError {
             RepositoryError::NotFound => ErrorKind::NotFound,
             RepositoryError::Conflict => ErrorKind::Conflict,
             RepositoryError::Constraint(_) => ErrorKind::ValidationError,
-            RepositoryError::Message(_) | RepositoryError::ReadOnly | RepositoryError::Any(_) => ErrorKind::InternalError,
+            RepositoryError::ReadOnly | RepositoryError::Database(_) | RepositoryError::QueryCanceled => ErrorKind::InternalError,
         }
     }
 }

@@ -70,19 +70,18 @@ mod tests {
     }
 
     #[test]
-    fn test_message_error_maps_to_internal() {
-        let error = Error::Message("something went wrong".into());
+    fn test_network_error_maps_to_internal() {
+        let error = Error::NetworkError("connection refused".into());
 
         let status = map_core_error(error);
 
         assert_eq!(status.code(), Code::Internal);
-        assert!(status.message().contains("something went wrong"));
+        assert!(status.message().contains("connection refused"));
     }
 
     #[test]
-    fn test_any_error_maps_to_internal() {
-        let inner_error = std::io::Error::other("io error");
-        let error = Error::Any(Box::new(inner_error));
+    fn test_grpc_client_error_maps_to_internal() {
+        let error = Error::GrpcClientError("transport error".into());
 
         let status = map_core_error(error);
 
@@ -90,11 +89,20 @@ mod tests {
     }
 
     #[test]
-    fn test_repository_message_maps_to_internal() {
-        let error = Error::RepositoryError(RepositoryError::Message("database error".into()));
+    fn test_repository_database_error_maps_to_internal() {
+        let error = Error::RepositoryError(RepositoryError::Database("database error".into()));
 
         let status = map_core_error(error);
 
         assert_eq!(status.code(), Code::Internal);
+    }
+
+    #[test]
+    fn test_invalid_uuid_maps_to_bad_request() {
+        let error = Error::InvalidUuid("not-a-uuid".into());
+
+        let status = map_core_error(error);
+
+        assert_eq!(status.code(), Code::InvalidArgument);
     }
 }

@@ -215,7 +215,7 @@ mod tests {
         let mock_db = MockDatabase::new(DatabaseBackend::Postgres).append_query_results([[create_test_user_model(1, "John Doe", "john@example.com")]]);
 
         let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository.begin().await.unwrap();
+        let tx = repo_service.repository().begin().await.unwrap();
 
         let new_user = NewUser {
             name: "John Doe".into(),
@@ -223,7 +223,7 @@ mod tests {
             age: 30,
         };
 
-        let result = repo_service.user_repository.add_user(&*tx, new_user).await;
+        let result = repo_service.user_repository().add_user(&*tx, new_user).await;
 
         assert!(result.is_ok());
         let user = result.unwrap();
@@ -240,9 +240,9 @@ mod tests {
         let mock_db = MockDatabase::new(DatabaseBackend::Postgres).append_query_results([[create_test_user_model(1, "John Doe", "john@example.com")]]);
 
         let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository.begin().await.unwrap();
+        let tx = repo_service.repository().begin().await.unwrap();
 
-        let result = repo_service.user_repository.find_by_id(&*tx, 1).await;
+        let result = repo_service.user_repository().find_by_id(&*tx, 1).await;
 
         assert!(result.is_ok());
         let user = result.unwrap();
@@ -257,9 +257,9 @@ mod tests {
         let mock_db = MockDatabase::new(DatabaseBackend::Postgres).append_query_results([Vec::<users::Model>::new()]);
 
         let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository.begin().await.unwrap();
+        let tx = repo_service.repository().begin().await.unwrap();
 
-        let result = repo_service.user_repository.find_by_id(&*tx, 999).await;
+        let result = repo_service.user_repository().find_by_id(&*tx, 999).await;
 
         assert!(result.is_ok());
         assert!(result.unwrap().is_none());
@@ -273,7 +273,7 @@ mod tests {
         // first
         let mock_db = MockDatabase::new(DatabaseBackend::Postgres);
         let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository.begin().await.unwrap();
+        let tx = repo_service.repository().begin().await.unwrap();
 
         let result = adapter.find_by_id(&*tx, -1).await;
 
@@ -289,9 +289,9 @@ mod tests {
         let mock_db = MockDatabase::new(DatabaseBackend::Postgres).append_query_results([[create_test_user_model(1, "John Doe", "john@example.com")]]);
 
         let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository.begin().await.unwrap();
+        let tx = repo_service.repository().begin().await.unwrap();
 
-        let result = repo_service.user_repository.find_by_email(&*tx, "john@example.com").await;
+        let result = repo_service.user_repository().find_by_email(&*tx, "john@example.com").await;
 
         assert!(result.is_ok());
         let user = result.unwrap();
@@ -304,9 +304,9 @@ mod tests {
         let mock_db = MockDatabase::new(DatabaseBackend::Postgres).append_query_results([Vec::<users::Model>::new()]);
 
         let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository.begin().await.unwrap();
+        let tx = repo_service.repository().begin().await.unwrap();
 
-        let result = repo_service.user_repository.find_by_email(&*tx, "unknown@example.com").await;
+        let result = repo_service.user_repository().find_by_email(&*tx, "unknown@example.com").await;
 
         assert!(result.is_ok());
         assert!(result.unwrap().is_none());
@@ -323,9 +323,9 @@ mod tests {
             .append_query_results([vec![(user1, Option::<user_info::Model>::None), (user2, Option::<user_info::Model>::None)]]);
 
         let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository.begin().await.unwrap();
+        let tx = repo_service.repository().begin().await.unwrap();
 
-        let result = repo_service.user_repository.list_users(&*tx, None, None).await;
+        let result = repo_service.user_repository().list_users(&*tx, None, None).await;
 
         assert!(result.is_ok());
         let users = result.unwrap();
@@ -339,9 +339,9 @@ mod tests {
         let mock_db = MockDatabase::new(DatabaseBackend::Postgres).append_query_results([Vec::<(users::Model, Option<user_info::Model>)>::new()]);
 
         let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository.begin().await.unwrap();
+        let tx = repo_service.repository().begin().await.unwrap();
 
-        let result = repo_service.user_repository.list_users(&*tx, None, None).await;
+        let result = repo_service.user_repository().list_users(&*tx, None, None).await;
 
         assert!(result.is_ok());
         assert!(result.unwrap().is_empty());
@@ -351,9 +351,9 @@ mod tests {
     async fn test_list_users_invalid_start_id() {
         let mock_db = MockDatabase::new(DatabaseBackend::Postgres);
         let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository.begin().await.unwrap();
+        let tx = repo_service.repository().begin().await.unwrap();
 
-        let result = repo_service.user_repository.list_users(&*tx, Some(-1), None).await;
+        let result = repo_service.user_repository().list_users(&*tx, Some(-1), None).await;
 
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), Error::InvalidId(-1)));
@@ -363,9 +363,9 @@ mod tests {
     async fn test_list_users_invalid_page_size() {
         let mock_db = MockDatabase::new(DatabaseBackend::Postgres);
         let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository.begin().await.unwrap();
+        let tx = repo_service.repository().begin().await.unwrap();
 
-        let result = repo_service.user_repository.list_users(&*tx, None, Some(0)).await;
+        let result = repo_service.user_repository().list_users(&*tx, None, Some(0)).await;
 
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), Error::InvalidPageSize(0)));
@@ -384,7 +384,7 @@ mod tests {
             .append_query_results([[updated.clone()]]);
 
         let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository.begin().await.unwrap();
+        let tx = repo_service.repository().begin().await.unwrap();
 
         let user = hex_play_core::models::UserBuilder::default()
             .id(1)
@@ -394,7 +394,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let result = repo_service.user_repository.update_user(&*tx, user).await;
+        let result = repo_service.user_repository().update_user(&*tx, user).await;
 
         assert!(result.is_ok());
         let user = result.unwrap();
@@ -406,7 +406,7 @@ mod tests {
         let mock_db = MockDatabase::new(DatabaseBackend::Postgres).append_query_results([Vec::<users::Model>::new()]);
 
         let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository.begin().await.unwrap();
+        let tx = repo_service.repository().begin().await.unwrap();
 
         let user = hex_play_core::models::UserBuilder::default()
             .id(999)
@@ -416,7 +416,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let result = repo_service.user_repository.update_user(&*tx, user).await;
+        let result = repo_service.user_repository().update_user(&*tx, user).await;
 
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), Error::RepositoryError(RepositoryError::NotFound)));
@@ -429,7 +429,7 @@ mod tests {
         let mock_db = MockDatabase::new(DatabaseBackend::Postgres).append_query_results([[existing]]);
 
         let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository.begin().await.unwrap();
+        let tx = repo_service.repository().begin().await.unwrap();
 
         let user = hex_play_core::models::UserBuilder::default()
             .id(1)
@@ -439,7 +439,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let result = repo_service.user_repository.update_user(&*tx, user).await;
+        let result = repo_service.user_repository().update_user(&*tx, user).await;
 
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), Error::RepositoryError(RepositoryError::Conflict)));
@@ -449,7 +449,7 @@ mod tests {
     async fn test_update_user_invalid_id() {
         let mock_db = MockDatabase::new(DatabaseBackend::Postgres);
         let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository.begin().await.unwrap();
+        let tx = repo_service.repository().begin().await.unwrap();
 
         let user = hex_play_core::models::UserBuilder::default()
             .id(-1)
@@ -459,7 +459,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let result = repo_service.user_repository.update_user(&*tx, user).await;
+        let result = repo_service.user_repository().update_user(&*tx, user).await;
 
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), Error::InvalidId(-1)));
@@ -480,7 +480,7 @@ mod tests {
             }]);
 
         let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository.begin().await.unwrap();
+        let tx = repo_service.repository().begin().await.unwrap();
 
         let user = hex_play_core::models::UserBuilder::default()
             .id(1)
@@ -490,7 +490,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let result = repo_service.user_repository.delete_user(&*tx, user).await;
+        let result = repo_service.user_repository().delete_user(&*tx, user).await;
 
         assert!(result.is_ok());
         let deleted = result.unwrap();
@@ -503,7 +503,7 @@ mod tests {
         let mock_db = MockDatabase::new(DatabaseBackend::Postgres).append_query_results([Vec::<users::Model>::new()]);
 
         let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository.begin().await.unwrap();
+        let tx = repo_service.repository().begin().await.unwrap();
 
         let user = hex_play_core::models::UserBuilder::default()
             .id(999)
@@ -513,7 +513,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let result = repo_service.user_repository.delete_user(&*tx, user).await;
+        let result = repo_service.user_repository().delete_user(&*tx, user).await;
 
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), Error::RepositoryError(RepositoryError::NotFound)));
@@ -526,7 +526,7 @@ mod tests {
         let mock_db = MockDatabase::new(DatabaseBackend::Postgres).append_query_results([[existing]]);
 
         let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository.begin().await.unwrap();
+        let tx = repo_service.repository().begin().await.unwrap();
 
         let user = hex_play_core::models::UserBuilder::default()
             .id(1)
@@ -536,7 +536,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let result = repo_service.user_repository.delete_user(&*tx, user).await;
+        let result = repo_service.user_repository().delete_user(&*tx, user).await;
 
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), Error::RepositoryError(RepositoryError::Conflict)));
@@ -552,9 +552,9 @@ mod tests {
         let mock_db = MockDatabase::new(DatabaseBackend::Postgres).append_query_results([[test_user]]);
 
         let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository.begin().await.unwrap();
+        let tx = repo_service.repository().begin().await.unwrap();
 
-        let result = repo_service.user_repository.find_by_token(&*tx, token).await;
+        let result = repo_service.user_repository().find_by_token(&*tx, token).await;
 
         assert!(result.is_ok());
         let user = result.unwrap();
@@ -569,9 +569,9 @@ mod tests {
         let mock_db = MockDatabase::new(DatabaseBackend::Postgres).append_query_results([Vec::<users::Model>::new()]);
 
         let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository.begin().await.unwrap();
+        let tx = repo_service.repository().begin().await.unwrap();
 
-        let result = repo_service.user_repository.find_by_token(&*tx, Uuid::new_v4()).await;
+        let result = repo_service.user_repository().find_by_token(&*tx, Uuid::new_v4()).await;
 
         assert!(result.is_ok());
         assert!(result.unwrap().is_none());

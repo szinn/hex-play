@@ -52,8 +52,10 @@ impl IntoSubsystem<Error> for HttpSubsystem {
         let user_routes = user::get_routes(self.core_services.clone());
         let app = Router::new().route("/", get(hello_handler)).merge(user_routes).layer(middleware);
 
-        let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.map_err(|e| Error::Any(Box::new(e)))?;
-        tracing::info!("listening on {}", listener.local_addr().map_err(|e| Error::Any(Box::new(e)))?);
+        let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
+            .await
+            .map_err(|e| Error::NetworkError(e.to_string()))?;
+        tracing::info!("listening on {}", listener.local_addr().map_err(|e| Error::NetworkError(e.to_string()))?);
 
         tokio::select! {
             _ = subsys.on_shutdown_requested() => {
