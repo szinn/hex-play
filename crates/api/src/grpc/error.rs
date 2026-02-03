@@ -9,9 +9,9 @@ pub fn map_core_error(error: CoreError) -> Status {
     match error.kind() {
         ErrorKind::NotFound => Status::not_found(message),
         ErrorKind::Conflict => Status::already_exists(message),
-        ErrorKind::ValidationError => Status::invalid_argument(message),
+        ErrorKind::InvalidInput => Status::invalid_argument(message),
         ErrorKind::BadRequest => Status::invalid_argument(message),
-        ErrorKind::InternalError => Status::internal(message),
+        ErrorKind::Internal => Status::internal(message),
     }
 }
 
@@ -70,22 +70,13 @@ mod tests {
     }
 
     #[test]
-    fn test_network_error_maps_to_internal() {
-        let error = Error::NetworkError("connection refused".into());
+    fn test_infrastructure_error_maps_to_internal() {
+        let error = Error::Infrastructure("connection refused".into());
 
         let status = map_core_error(error);
 
         assert_eq!(status.code(), Code::Internal);
         assert!(status.message().contains("connection refused"));
-    }
-
-    #[test]
-    fn test_grpc_client_error_maps_to_internal() {
-        let error = Error::GrpcClientError("transport error".into());
-
-        let status = map_core_error(error);
-
-        assert_eq!(status.code(), Code::Internal);
     }
 
     #[test]

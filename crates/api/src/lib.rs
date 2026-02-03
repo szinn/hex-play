@@ -5,8 +5,11 @@ use tokio_graceful_shutdown::{IntoSubsystem, SubsystemBuilder, SubsystemHandle};
 
 use crate::{grpc::GrpcSubsystem, http::HttpSubsystem};
 
+mod error;
 pub mod grpc;
 mod http;
+
+pub use error::ApiError;
 
 pub struct ApiSubsystem {
     core_services: Arc<CoreServices>,

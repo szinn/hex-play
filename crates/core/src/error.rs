@@ -1,16 +1,16 @@
-/// Categorizes errors for HTTP response mapping.
+/// Categorizes errors for response mapping in adapters.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErrorKind {
-    /// Resource not found (404)
+    /// Resource not found.
     NotFound,
-    /// Resource conflict, e.g., optimistic locking failure (409)
+    /// Resource conflict, e.g., optimistic locking failure.
     Conflict,
-    /// Validation or constraint error (422)
-    ValidationError,
-    /// Bad request, e.g., invalid ID (400)
+    /// Invalid input or constraint violation.
+    InvalidInput,
+    /// Malformed request data.
     BadRequest,
-    /// Internal server error (500)
-    InternalError,
+    /// Internal or infrastructure error.
+    Internal,
 }
 
 #[derive(Debug, Clone, thiserror::Error)]
@@ -24,20 +24,14 @@ pub enum Error {
     #[error("Validation error: {0}")]
     Validation(String),
 
-    #[error("Failed to parse address: {0}")]
-    AddressParse(String),
-
     #[error("Invalid transaction type")]
     InvalidTransactionType,
 
     #[error("Invalid UUID: {0}")]
     InvalidUuid(String),
 
-    #[error("Network error: {0}")]
-    NetworkError(String),
-
-    #[error("gRPC client error: {0}")]
-    GrpcClientError(String),
+    #[error("Infrastructure error: {0}")]
+    Infrastructure(String),
 
     #[error(transparent)]
     RepositoryError(#[from] RepositoryError),
@@ -48,15 +42,15 @@ pub enum Error {
 }
 
 impl Error {
-    /// Returns the error kind for HTTP response mapping.
+    /// Returns the error kind for response mapping in adapters.
     pub fn kind(&self) -> ErrorKind {
         match self {
             Error::InvalidId(_) | Error::InvalidPageSize(_) | Error::InvalidUuid(_) => ErrorKind::BadRequest,
-            Error::Validation(_) => ErrorKind::ValidationError,
-            Error::AddressParse(_) | Error::InvalidTransactionType | Error::NetworkError(_) | Error::GrpcClientError(_) => ErrorKind::InternalError,
+            Error::Validation(_) => ErrorKind::InvalidInput,
+            Error::InvalidTransactionType | Error::Infrastructure(_) => ErrorKind::Internal,
             Error::RepositoryError(e) => e.kind(),
             #[cfg(any(test, feature = "test-support"))]
-            Error::MockNotConfigured(_) => ErrorKind::InternalError,
+            Error::MockNotConfigured(_) => ErrorKind::Internal,
         }
     }
 }
@@ -83,13 +77,13 @@ pub enum RepositoryError {
 }
 
 impl RepositoryError {
-    /// Returns the error kind for HTTP response mapping.
+    /// Returns the error kind for response mapping in adapters.
     pub fn kind(&self) -> ErrorKind {
         match self {
             RepositoryError::NotFound => ErrorKind::NotFound,
             RepositoryError::Conflict => ErrorKind::Conflict,
-            RepositoryError::Constraint(_) => ErrorKind::ValidationError,
-            RepositoryError::ReadOnly | RepositoryError::Database(_) | RepositoryError::QueryCanceled => ErrorKind::InternalError,
+            RepositoryError::Constraint(_) => ErrorKind::InvalidInput,
+            RepositoryError::ReadOnly | RepositoryError::Database(_) | RepositoryError::QueryCanceled => ErrorKind::Internal,
         }
     }
 }

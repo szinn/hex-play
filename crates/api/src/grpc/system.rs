@@ -110,16 +110,23 @@ mod tests {
 pub mod api {
     use hex_play_core::Error;
 
-    use crate::grpc::system_proto::{StatusRequest, StatusResponse, system_service_client::SystemServiceClient};
+    use crate::{
+        ApiError,
+        grpc::system_proto::{StatusRequest, StatusResponse, system_service_client::SystemServiceClient},
+    };
 
     #[tracing::instrument(level = "trace")]
     pub async fn status(question: String) -> Result<String, Error> {
         let mut client = SystemServiceClient::connect("http://localhost:3001")
             .await
-            .map_err(|e| Error::GrpcClientError(e.to_string()))?;
+            .map_err(|e| Error::from(ApiError::GrpcClient(e.to_string())))?;
 
         let request = tonic::Request::new(StatusRequest { question });
-        let response: StatusResponse = client.status(request).await.map_err(|e| Error::GrpcClientError(e.to_string()))?.into_inner();
+        let response: StatusResponse = client
+            .status(request)
+            .await
+            .map_err(|e| Error::from(ApiError::GrpcClient(e.to_string())))?
+            .into_inner();
 
         Ok(response.answer)
     }

@@ -702,9 +702,12 @@ pub mod api {
     };
     use uuid::Uuid;
 
-    use crate::grpc::user_proto::{
-        CreateUserRequest, DeleteUserRequest, GetUserByTokenRequest, GetUserRequest, ListUsersRequest, UpdateUserRequest, User as ProtoUser,
-        user_service_client::UserServiceClient,
+    use crate::{
+        ApiError,
+        grpc::user_proto::{
+            CreateUserRequest, DeleteUserRequest, GetUserByTokenRequest, GetUserRequest, ListUsersRequest, UpdateUserRequest, User as ProtoUser,
+            user_service_client::UserServiceClient,
+        },
     };
 
     fn from_proto(proto: ProtoUser) -> Result<User, Error> {
@@ -722,9 +725,13 @@ pub mod api {
     pub async fn create(name: String, email: String, age: i16) -> Result<User, Error> {
         let mut client = UserServiceClient::connect("http://localhost:3001")
             .await
-            .map_err(|e| Error::GrpcClientError(e.to_string()))?;
+            .map_err(|e| Error::from(ApiError::GrpcClient(e.to_string())))?;
         let request = tonic::Request::new(CreateUserRequest { name, email, age: age as i32 });
-        let response = client.create(request).await.map_err(|e| Error::GrpcClientError(e.to_string()))?.into_inner();
+        let response = client
+            .create(request)
+            .await
+            .map_err(|e| Error::from(ApiError::GrpcClient(e.to_string())))?
+            .into_inner();
         from_proto(response)
     }
 
@@ -732,9 +739,13 @@ pub mod api {
     pub async fn get(id: i64) -> Result<User, Error> {
         let mut client = UserServiceClient::connect("http://localhost:3001")
             .await
-            .map_err(|e| Error::GrpcClientError(e.to_string()))?;
+            .map_err(|e| Error::from(ApiError::GrpcClient(e.to_string())))?;
         let request = tonic::Request::new(GetUserRequest { id });
-        let response = client.get(request).await.map_err(|e| Error::GrpcClientError(e.to_string()))?.into_inner();
+        let response = client
+            .get(request)
+            .await
+            .map_err(|e| Error::from(ApiError::GrpcClient(e.to_string())))?
+            .into_inner();
         from_proto(response)
     }
 
@@ -742,12 +753,12 @@ pub mod api {
     pub async fn get_by_token(token: Uuid) -> Result<User, Error> {
         let mut client = UserServiceClient::connect("http://localhost:3001")
             .await
-            .map_err(|e| Error::GrpcClientError(e.to_string()))?;
+            .map_err(|e| Error::from(ApiError::GrpcClient(e.to_string())))?;
         let request = tonic::Request::new(GetUserByTokenRequest { token: token.to_string() });
         let response = client
             .get_by_token(request)
             .await
-            .map_err(|e| Error::GrpcClientError(e.to_string()))?
+            .map_err(|e| Error::from(ApiError::GrpcClient(e.to_string())))?
             .into_inner();
         from_proto(response)
     }
@@ -756,14 +767,18 @@ pub mod api {
     pub async fn update(id: i64, name: Option<String>, email: Option<String>, age: Option<i16>) -> Result<User, Error> {
         let mut client = UserServiceClient::connect("http://localhost:3001")
             .await
-            .map_err(|e| Error::GrpcClientError(e.to_string()))?;
+            .map_err(|e| Error::from(ApiError::GrpcClient(e.to_string())))?;
         let request = tonic::Request::new(UpdateUserRequest {
             id,
             name,
             email,
             age: age.map(|a| a as i32),
         });
-        let response = client.update(request).await.map_err(|e| Error::GrpcClientError(e.to_string()))?.into_inner();
+        let response = client
+            .update(request)
+            .await
+            .map_err(|e| Error::from(ApiError::GrpcClient(e.to_string())))?
+            .into_inner();
         from_proto(response)
     }
 
@@ -771,9 +786,13 @@ pub mod api {
     pub async fn delete(id: i64) -> Result<User, Error> {
         let mut client = UserServiceClient::connect("http://localhost:3001")
             .await
-            .map_err(|e| Error::GrpcClientError(e.to_string()))?;
+            .map_err(|e| Error::from(ApiError::GrpcClient(e.to_string())))?;
         let request = tonic::Request::new(DeleteUserRequest { id });
-        let response = client.delete(request).await.map_err(|e| Error::GrpcClientError(e.to_string()))?.into_inner();
+        let response = client
+            .delete(request)
+            .await
+            .map_err(|e| Error::from(ApiError::GrpcClient(e.to_string())))?
+            .into_inner();
         from_proto(response)
     }
 
@@ -781,9 +800,13 @@ pub mod api {
     pub async fn list(start_id: Option<i64>, page_size: Option<u64>) -> Result<Vec<User>, Error> {
         let mut client = UserServiceClient::connect("http://localhost:3001")
             .await
-            .map_err(|e| Error::GrpcClientError(e.to_string()))?;
+            .map_err(|e| Error::from(ApiError::GrpcClient(e.to_string())))?;
         let request = tonic::Request::new(ListUsersRequest { start_id, page_size });
-        let response = client.list(request).await.map_err(|e| Error::GrpcClientError(e.to_string()))?.into_inner();
+        let response = client
+            .list(request)
+            .await
+            .map_err(|e| Error::from(ApiError::GrpcClient(e.to_string())))?
+            .into_inner();
         response.users.into_iter().map(from_proto).collect()
     }
 }

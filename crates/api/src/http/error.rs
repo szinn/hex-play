@@ -17,9 +17,9 @@ fn status_code_from_error_kind(kind: ErrorKind) -> StatusCode {
     match kind {
         ErrorKind::NotFound => StatusCode::NOT_FOUND,
         ErrorKind::Conflict => StatusCode::CONFLICT,
-        ErrorKind::ValidationError => StatusCode::UNPROCESSABLE_ENTITY,
+        ErrorKind::InvalidInput => StatusCode::UNPROCESSABLE_ENTITY,
         ErrorKind::BadRequest => StatusCode::BAD_REQUEST,
-        ErrorKind::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
+        ErrorKind::Internal => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }
 

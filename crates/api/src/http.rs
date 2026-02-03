@@ -14,6 +14,8 @@ use tower_http::{
     trace::TraceLayer,
 };
 
+use crate::error::ApiError;
+
 mod error;
 mod user;
 
@@ -54,8 +56,11 @@ impl IntoSubsystem<Error> for HttpSubsystem {
 
         let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
             .await
-            .map_err(|e| Error::NetworkError(e.to_string()))?;
-        tracing::info!("listening on {}", listener.local_addr().map_err(|e| Error::NetworkError(e.to_string()))?);
+            .map_err(|e| Error::from(ApiError::Network(e.to_string())))?;
+        tracing::info!(
+            "listening on {}",
+            listener.local_addr().map_err(|e| Error::from(ApiError::Network(e.to_string())))?
+        );
 
         tokio::select! {
             _ = subsys.on_shutdown_requested() => {

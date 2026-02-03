@@ -4,6 +4,8 @@ use hex_play_core::{Error, services::CoreServices};
 use tokio_graceful_shutdown::{IntoSubsystem, SubsystemHandle};
 use tonic::transport::Server;
 
+use crate::error::ApiError;
+
 mod error;
 pub mod system;
 pub mod user;
@@ -28,7 +30,7 @@ impl GrpcSubsystem {
 
 impl IntoSubsystem<Error> for GrpcSubsystem {
     async fn run(self, subsys: &mut SubsystemHandle) -> Result<(), Error> {
-        let addr = "0.0.0.0:3001".parse().map_err(|_| Error::AddressParse("0.0.0.0:3001".into()))?;
+        let addr = "0.0.0.0:3001".parse().map_err(|_| Error::from(ApiError::AddressParse("0.0.0.0:3001".into())))?;
 
         let system_service = system::GrpcSystemService::new();
         let user_service = user::GrpcUserService::new(self.core_services.clone());
