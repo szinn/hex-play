@@ -32,4 +32,24 @@ pub enum Commands {
 
     #[command(about = "Server status check", display_order = 20)]
     Status { question: String },
+
+    #[command(about = "Add user", display_order = 30)]
+    AddUser { name: String, email: String, age: i16 },
+
+    #[command(about = "Delete user", display_order = 31)]
+    DeleteUser { id: i64 },
+
+    #[command(about = "Update user", display_order = 32)]
+    UpdateUser {
+        id: i64,
+        #[arg(value_name = "name")]
+        name: Option<String>,
+        #[arg(value_name = "email")]
+        email: Option<String>,
+        #[arg(value_name = "age")]
+        age: Option<i16>,
+    },
+
+    #[command(about = "Get users", display_order = 33)]
+    GetUsers {},
 }

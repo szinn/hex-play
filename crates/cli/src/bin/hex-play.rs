@@ -17,8 +17,23 @@ async fn main() -> Result<()> {
         }
         Commands::Status { question } => {
             let answer = hex_play_api::grpc::system::api::status(question).await?;
-
             println!("Status: {}", answer);
+        }
+        Commands::AddUser { name, email, age } => {
+            let user = hex_play_api::grpc::user::api::create(name, email, age).await?;
+            println!("Added user: {:?}", user);
+        }
+        Commands::DeleteUser { id } => {
+            let user = hex_play_api::grpc::user::api::delete(id).await?;
+            println!("Deleted user: {:?}", user);
+        }
+        Commands::UpdateUser { id, name, email, age } => {
+            let user = hex_play_api::grpc::user::api::update(id, name, email, age).await?;
+            println!("Updated user: {:?}", user);
+        }
+        Commands::GetUsers {} => {
+            let users = hex_play_api::grpc::user::api::list(None, None).await?;
+            println!("Users: {:?}", users);
         }
     }
     Ok(())
