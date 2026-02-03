@@ -7,7 +7,7 @@ use axum::{
     routing::{get, post},
 };
 use hex_play_core::{
-    models::{NewUser, PartialUserUpdate, User},
+    models::{Age, Email, NewUser, PartialUserUpdate, User},
     services::CoreServices,
 };
 use serde::{Deserialize, Serialize};
@@ -30,9 +30,9 @@ pub(crate) fn get_routes(core_services: Arc<CoreServices>) -> Router {
 #[derive(Deserialize, Debug)]
 struct CreateUserRequest {
     name: String,
-    email: String,
+    email: Email,
     #[serde(default)]
-    age: i16,
+    age: Age,
 }
 
 impl From<CreateUserRequest> for NewUser {
@@ -50,8 +50,8 @@ struct UserResponse {
     id: i64,
     token: Uuid,
     name: String,
-    email: String,
-    age: i16,
+    email: Email,
+    age: Age,
 }
 
 impl From<User> for UserResponse {
@@ -120,8 +120,8 @@ async fn get_user_by_token(Path(token): Path<Uuid>, State(core_services): State<
 #[derive(Deserialize, Debug)]
 struct UpdateUserRequest {
     name: Option<String>,
-    email: Option<String>,
-    age: Option<i16>,
+    email: Option<Email>,
+    age: Option<Age>,
 }
 
 impl From<UpdateUserRequest> for PartialUserUpdate {

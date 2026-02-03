@@ -1,7 +1,7 @@
 use chrono::Utc;
 use hex_play_core::{
     Error, RepositoryError,
-    models::{NewUser, User},
+    models::{Age, Email, NewUser, User},
     repositories::{Transaction, UserRepository},
 };
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, ModelTrait, QueryFilter, QueryOrder, QuerySelect, prelude::Uuid};
@@ -22,8 +22,8 @@ impl From<users::Model> for User {
             version: model.version,
             token: model.token,
             name: model.name,
-            email: model.email,
-            age: 0, // Age is stored in user_info table, populated by service layer
+            email: Email::new(model.email).expect("database email should be valid"),
+            age: Age::default(), // Age is stored in user_info table, populated by service layer
             created_at: model.created_at.with_timezone(&Utc),
             updated_at: model.updated_at.with_timezone(&Utc),
         }
@@ -34,7 +34,7 @@ fn to_user(user: users::Model, user_info: Option<user_info::Model>) -> User {
     let mut user: User = user.into();
 
     if let Some(user_info) = user_info {
-        user.age = user_info.age;
+        user.age = Age::new(user_info.age).expect("database age should be valid");
     };
 
     user
@@ -56,7 +56,7 @@ impl UserRepository for UserRepositoryAdapter {
 
         let model = users::ActiveModel {
             name: Set(user.name),
-            email: Set(user.email),
+            email: Set(user.email.into_inner()),
             version: Set(0),
             ..Default::default()
         };
@@ -87,8 +87,8 @@ impl UserRepository for UserRepositoryAdapter {
         if existing.name != user.name {
             updater.name = Set(user.name);
         }
-        if existing.email != user.email {
-            updater.email = Set(user.email);
+        if existing.email != user.email.as_str() {
+            updater.email = Set(user.email.into_inner());
         }
 
         let updated = updater.update(transaction).await.map_err(handle_dberr)?;
@@ -160,10 +160,10 @@ impl UserRepository for UserRepositoryAdapter {
     }
 
     #[tracing::instrument(level = "trace", skip(self, transaction))]
-    async fn find_by_email(&self, transaction: &dyn Transaction, email: &str) -> Result<Option<User>, Error> {
+    async fn find_by_email(&self, transaction: &dyn Transaction, email: &Email) -> Result<Option<User>, Error> {
         let transaction = TransactionImpl::get_db_transaction(transaction)?;
 
-        Ok(prelude::Users::find_by_email(email)
+        Ok(prelude::Users::find_by_email(email.as_str())
             .one(transaction)
             .await
             .map_err(handle_dberr)?
@@ -186,7 +186,11 @@ impl UserRepository for UserRepositoryAdapter {
 #[cfg(test)]
 mod tests {
     use chrono::{TimeZone, Utc};
-    use hex_play_core::{Error, RepositoryError, models::NewUser, repositories::UserRepository};
+    use hex_play_core::{
+        Error, RepositoryError,
+        models::{Email, NewUser},
+        repositories::UserRepository,
+    };
     use sea_orm::{DatabaseBackend, MockDatabase, MockExecResult, prelude::Uuid};
 
     use super::UserRepositoryAdapter;
@@ -217,11 +221,7 @@ mod tests {
         let repo_service = create_mock_repository_service_with_db(mock_db);
         let tx = repo_service.repository().begin().await.unwrap();
 
-        let new_user = NewUser {
-            name: "John Doe".into(),
-            email: "john@example.com".into(),
-            age: 30,
-        };
+        let new_user = NewUser::new("John Doe", "john@example.com", 30).unwrap();
 
         let result = repo_service.user_repository().add_user(&*tx, new_user).await;
 
@@ -229,7 +229,7 @@ mod tests {
         let user = result.unwrap();
         assert_eq!(user.id, 1);
         assert_eq!(user.name, "John Doe");
-        assert_eq!(user.email, "john@example.com");
+        assert_eq!(user.email.as_str(), "john@example.com");
     }
 
     // ===================
@@ -291,12 +291,13 @@ mod tests {
         let repo_service = create_mock_repository_service_with_db(mock_db);
         let tx = repo_service.repository().begin().await.unwrap();
 
-        let result = repo_service.user_repository().find_by_email(&*tx, "john@example.com").await;
+        let email = Email::new("john@example.com").unwrap();
+        let result = repo_service.user_repository().find_by_email(&*tx, &email).await;
 
         assert!(result.is_ok());
         let user = result.unwrap();
         assert!(user.is_some());
-        assert_eq!(user.unwrap().email, "john@example.com");
+        assert_eq!(user.unwrap().email.as_str(), "john@example.com");
     }
 
     #[tokio::test]
@@ -306,7 +307,8 @@ mod tests {
         let repo_service = create_mock_repository_service_with_db(mock_db);
         let tx = repo_service.repository().begin().await.unwrap();
 
-        let result = repo_service.user_repository().find_by_email(&*tx, "unknown@example.com").await;
+        let email = Email::new("unknown@example.com").unwrap();
+        let result = repo_service.user_repository().find_by_email(&*tx, &email).await;
 
         assert!(result.is_ok());
         assert!(result.unwrap().is_none());
@@ -390,7 +392,7 @@ mod tests {
             .id(1)
             .version(0)
             .name("John Updated".into())
-            .email("john.updated@example.com".into())
+            .email(Email::new("john.updated@example.com").unwrap())
             .build()
             .unwrap();
 
@@ -412,7 +414,7 @@ mod tests {
             .id(999)
             .version(0)
             .name("Nonexistent".into())
-            .email("none@example.com".into())
+            .email(Email::new("none@example.com").unwrap())
             .build()
             .unwrap();
 
@@ -435,7 +437,7 @@ mod tests {
             .id(1)
             .version(99) // Wrong version
             .name("John Updated".into())
-            .email("john@example.com".into())
+            .email(Email::new("john@example.com").unwrap())
             .build()
             .unwrap();
 
@@ -455,7 +457,7 @@ mod tests {
             .id(-1)
             .version(0)
             .name("Invalid".into())
-            .email("invalid@example.com".into())
+            .email(Email::new("invalid@example.com").unwrap())
             .build()
             .unwrap();
 
@@ -486,7 +488,7 @@ mod tests {
             .id(1)
             .version(0)
             .name("John Doe".into())
-            .email("john@example.com".into())
+            .email(Email::new("john@example.com").unwrap())
             .build()
             .unwrap();
 
@@ -509,7 +511,7 @@ mod tests {
             .id(999)
             .version(0)
             .name("Nonexistent".into())
-            .email("none@example.com".into())
+            .email(Email::new("none@example.com").unwrap())
             .build()
             .unwrap();
 
@@ -532,7 +534,7 @@ mod tests {
             .id(1)
             .version(99) // Wrong version
             .name("John Doe".into())
-            .email("john@example.com".into())
+            .email(Email::new("john@example.com").unwrap())
             .build()
             .unwrap();
 

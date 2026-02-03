@@ -2,7 +2,10 @@ use chrono::{DateTime, Utc};
 use derive_builder::Builder;
 use uuid::Uuid;
 
-#[derive(Debug, Default, Clone, Builder)]
+use super::newtypes::{Age, Email};
+use crate::Error;
+
+#[derive(Debug, Clone, Builder)]
 pub struct User {
     #[builder(default = "0")]
     pub id: i64,
@@ -11,13 +14,28 @@ pub struct User {
     #[builder(default = "Uuid::nil()")]
     pub token: Uuid,
     pub name: String,
-    pub email: String,
-    #[builder(default = "0")]
-    pub age: i16,
+    pub email: Email,
+    #[builder(default)]
+    pub age: Age,
     #[builder(default = "Utc::now()")]
     pub created_at: DateTime<Utc>,
     #[builder(default = "Utc::now()")]
     pub updated_at: DateTime<Utc>,
+}
+
+impl Default for User {
+    fn default() -> Self {
+        Self {
+            id: 0,
+            version: 0,
+            token: Uuid::nil(),
+            name: String::new(),
+            email: Email::new("default@example.com").expect("default email is valid"),
+            age: Age::default(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
 }
 
 impl User {
@@ -30,7 +48,7 @@ impl User {
             .version(0)
             .token(Uuid::new_v4())
             .name(name.into())
-            .email(email.into())
+            .email(Email::new(email).expect("test email should be valid"))
             .build()
             .expect("test user should build successfully")
     }
@@ -44,19 +62,43 @@ impl User {
             .version(0)
             .token(Uuid::new_v4())
             .name(name.into())
-            .email(email.into())
-            .age(age)
+            .email(Email::new(email).expect("test email should be valid"))
+            .age(Age::new(age).expect("test age should be valid"))
             .build()
             .expect("test user should build successfully")
     }
 }
 
-#[derive(Debug, Default, Clone, Builder)]
+#[derive(Debug, Clone)]
 pub struct NewUser {
     pub name: String,
-    pub email: String,
-    #[builder(default = "0")]
-    pub age: i16,
+    pub email: Email,
+    pub age: Age,
+}
+
+impl NewUser {
+    /// Creates a new user with validated email and age.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Error::Validation` if email or age is invalid.
+    pub fn new(name: impl Into<String>, email: impl Into<String>, age: i16) -> Result<Self, Error> {
+        Ok(Self {
+            name: name.into(),
+            email: Email::new(email)?,
+            age: Age::new(age)?,
+        })
+    }
+}
+
+impl Default for NewUser {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            email: Email::new("default@example.com").expect("default email is valid"),
+            age: Age::default(),
+        }
+    }
 }
 
 /// Represents a partial update to a User.
@@ -66,11 +108,24 @@ pub struct NewUser {
 #[derive(Debug, Default, Clone)]
 pub struct PartialUserUpdate {
     pub name: Option<String>,
-    pub email: Option<String>,
-    pub age: Option<i16>,
+    pub email: Option<Email>,
+    pub age: Option<Age>,
 }
 
 impl PartialUserUpdate {
+    /// Creates a new partial update with validated email and age if provided.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Error::Validation` if email or age is invalid.
+    pub fn new(name: Option<String>, email: Option<String>, age: Option<i16>) -> Result<Self, Error> {
+        Ok(Self {
+            name,
+            email: email.map(Email::new).transpose()?,
+            age: age.map(Age::new).transpose()?,
+        })
+    }
+
     /// Apply this partial update to an existing user.
     ///
     /// Only modifies fields that have `Some` values.

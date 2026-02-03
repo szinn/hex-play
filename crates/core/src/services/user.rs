@@ -116,7 +116,7 @@ mod tests {
     use super::{UserService, UserServiceImpl};
     use crate::{
         Error, RepositoryError,
-        models::{NewUser, User, user_info::UserInfo},
+        models::{Age, Email, NewUser, User, user_info::UserInfo},
         repositories::{Repository, RepositoryService, Transaction, UserInfoRepository, UserRepository},
     };
 
@@ -247,7 +247,7 @@ mod tests {
                 .unwrap_or_else(|| Err(Error::MockNotConfigured("find_by_id")))
         }
 
-        async fn find_by_email(&self, _tx: &dyn Transaction, _email: &str) -> Result<Option<User>, Error> {
+        async fn find_by_email(&self, _tx: &dyn Transaction, _email: &Email) -> Result<Option<User>, Error> {
             Err(Error::MockNotConfigured("find_by_email"))
         }
 
@@ -289,11 +289,11 @@ mod tests {
 
     #[async_trait::async_trait]
     impl UserInfoRepository for MockUserInfoRepository {
-        async fn add_info(&self, _tx: &dyn Transaction, _user_token: Uuid, _age: i16) -> Result<UserInfo, Error> {
+        async fn add_info(&self, _tx: &dyn Transaction, _user_token: Uuid, _age: Age) -> Result<UserInfo, Error> {
             self.add_info_result.lock().unwrap().clone().unwrap_or_else(|| Ok(UserInfo::default()))
         }
 
-        async fn update_info(&self, _tx: &dyn Transaction, _user_token: Uuid, _age: i16) -> Result<UserInfo, Error> {
+        async fn update_info(&self, _tx: &dyn Transaction, _user_token: Uuid, _age: Age) -> Result<UserInfo, Error> {
             self.update_info_result.lock().unwrap().clone().unwrap_or_else(|| Ok(UserInfo::default()))
         }
 
@@ -327,17 +327,13 @@ mod tests {
         let mock_user_repository = MockUserRepository::default().with_add_user_result(Ok(expected_user.clone()));
         let user_info = UserInfo {
             user_token: expected_user.token,
-            age: 30,
+            age: Age::new(30).unwrap(),
             ..Default::default()
         };
         let mock_user_info_repository = MockUserInfoRepository::default().with_add_info_result(Ok(user_info));
         let use_cases = create_use_cases_with_info(mock_user_repository, mock_user_info_repository);
 
-        let new_user = NewUser {
-            name: "John Doe".into(),
-            email: "john@example.com".into(),
-            age: 30,
-        };
+        let new_user = NewUser::new("John Doe", "john@example.com", 30).unwrap();
 
         let result = use_cases.add_user(new_user).await;
 
@@ -345,8 +341,8 @@ mod tests {
         let user = result.unwrap();
         assert_eq!(user.id, 1);
         assert_eq!(user.name, "John Doe");
-        assert_eq!(user.email, "john@example.com");
-        assert_eq!(user.age, 30);
+        assert_eq!(user.email.as_str(), "john@example.com");
+        assert_eq!(user.age.value(), 30);
     }
 
     #[tokio::test]
@@ -355,11 +351,7 @@ mod tests {
             MockUserRepository::default().with_add_user_result(Err(Error::RepositoryError(RepositoryError::Constraint("duplicate email".into()))));
         let use_cases = create_use_cases(mock_repository);
 
-        let new_user = NewUser {
-            name: "John Doe".into(),
-            email: "john@example.com".into(),
-            age: 30,
-        };
+        let new_user = NewUser::new("John Doe", "john@example.com", 30).unwrap();
 
         let result = use_cases.add_user(new_user).await;
 
@@ -376,22 +368,22 @@ mod tests {
         let mock_user_repository = MockUserRepository::default().with_update_user_result(Ok(updated_user.clone()));
         let user_info = UserInfo {
             user_token: updated_user.token,
-            age: 35,
+            age: Age::new(35).unwrap(),
             ..Default::default()
         };
         let mock_user_info_repository = MockUserInfoRepository::default().with_update_info_result(Ok(user_info));
         let use_cases = create_use_cases_with_info(mock_user_repository, mock_user_info_repository);
 
         let mut user = User::test(1, "John Doe", "john@example.com");
-        user.age = 35;
+        user.age = Age::new(35).unwrap();
 
         let result = use_cases.update_user(user).await;
 
         assert!(result.is_ok());
         let user = result.unwrap();
         assert_eq!(user.name, "John Updated");
-        assert_eq!(user.email, "john.updated@example.com");
-        assert_eq!(user.age, 35);
+        assert_eq!(user.email.as_str(), "john.updated@example.com");
+        assert_eq!(user.age.value(), 35);
     }
 
     #[tokio::test]
@@ -416,7 +408,7 @@ mod tests {
         let mock_user_repository = MockUserRepository::default().with_find_by_id_result(Ok(Some(expected_user.clone())));
         let user_info = UserInfo {
             user_token: expected_user.token,
-            age: 30,
+            age: Age::new(30).unwrap(),
             ..Default::default()
         };
         let mock_user_info_repository = MockUserInfoRepository::default().with_find_by_token_result(Ok(Some(user_info)));
@@ -430,7 +422,7 @@ mod tests {
         let user = user.unwrap();
         assert_eq!(user.id, 1);
         assert_eq!(user.name, "John Doe");
-        assert_eq!(user.age, 30);
+        assert_eq!(user.age.value(), 30);
     }
 
     #[tokio::test]
@@ -463,9 +455,9 @@ mod tests {
         let users = result.unwrap();
         assert_eq!(users.len(), 2);
         assert_eq!(users[0].name, "John Doe");
-        assert_eq!(users[0].age, 30);
+        assert_eq!(users[0].age.value(), 30);
         assert_eq!(users[1].name, "Jane Doe");
-        assert_eq!(users[1].age, 25);
+        assert_eq!(users[1].age.value(), 25);
     }
 
     #[tokio::test]
@@ -493,7 +485,7 @@ mod tests {
             .with_delete_user_result(Ok(user_to_delete));
         let user_info = UserInfo {
             user_token: user_to_find.token,
-            age: 30,
+            age: Age::new(30).unwrap(),
             ..Default::default()
         };
         let mock_user_info_repository = MockUserInfoRepository::default().with_find_by_token_result(Ok(Some(user_info)));
@@ -505,7 +497,7 @@ mod tests {
         let deleted = result.unwrap();
         assert_eq!(deleted.id, 1);
         assert_eq!(deleted.name, "John Doe");
-        assert_eq!(deleted.age, 30);
+        assert_eq!(deleted.age.value(), 30);
     }
 
     #[tokio::test]
@@ -528,7 +520,7 @@ mod tests {
         let mock_user_repository = MockUserRepository::default().with_find_by_token_result(Ok(Some(expected_user.clone())));
         let user_info = UserInfo {
             user_token: expected_user.token,
-            age: 30,
+            age: Age::new(30).unwrap(),
             ..Default::default()
         };
         let mock_user_info_repository = MockUserInfoRepository::default().with_find_by_token_result(Ok(Some(user_info)));
@@ -542,7 +534,7 @@ mod tests {
         let user = user.unwrap();
         assert_eq!(user.id, 1);
         assert_eq!(user.name, "John Doe");
-        assert_eq!(user.age, 30);
+        assert_eq!(user.age.value(), 30);
     }
 
     #[tokio::test]

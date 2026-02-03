@@ -4,6 +4,8 @@
 
 use std::fmt;
 
+use serde::{Deserialize, Serialize, de};
+
 use crate::Error;
 
 /// A validated email address that must contain '@'.
@@ -47,6 +49,25 @@ impl AsRef<str> for Email {
     }
 }
 
+impl Serialize for Email {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.0)
+    }
+}
+
+impl<'de> Deserialize<'de> for Email {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Email::new(s).map_err(|e| de::Error::custom(e.to_string()))
+    }
+}
+
 /// Age with range validation (0-150).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct Age(i16);
@@ -87,43 +108,29 @@ impl From<Age> for i16 {
     }
 }
 
-/// User ID that must be non-negative.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct UserId(i64);
-
-impl UserId {
-    /// Creates a new UserId if the value is non-negative.
-    ///
-    /// # Errors
-    ///
-    /// Returns `Error::InvalidId` if the id is negative.
-    pub fn new(id: i64) -> Result<Self, Error> {
-        if id < 0 {
-            return Err(Error::InvalidId(id));
-        }
-        Ok(Self(id))
-    }
-
-    /// Returns the user id value.
-    pub fn value(&self) -> i64 {
-        self.0
+impl Serialize for Age {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_i16(self.0)
     }
 }
 
-impl fmt::Display for UserId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl From<UserId> for i64 {
-    fn from(id: UserId) -> Self {
-        id.0
+impl<'de> Deserialize<'de> for Age {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = i16::deserialize(deserializer)?;
+        Age::new(value).map_err(|e| de::Error::custom(e.to_string()))
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use serde_json;
+
     use super::*;
 
     // ==================
@@ -201,36 +208,74 @@ mod tests {
     }
 
     // ==================
-    // UserId tests
+    // Email serde tests
     // ==================
     #[test]
-    fn test_user_id_valid() {
-        let id = UserId::new(1).unwrap();
-        assert_eq!(id.value(), 1);
+    fn test_email_serialize() {
+        let email = Email::new("test@example.com").unwrap();
+        let json = serde_json::to_string(&email).unwrap();
+        assert_eq!(json, r#""test@example.com""#);
     }
 
     #[test]
-    fn test_user_id_zero_valid() {
-        let id = UserId::new(0).unwrap();
-        assert_eq!(id.value(), 0);
+    fn test_email_deserialize_valid() {
+        let email: Email = serde_json::from_str(r#""test@example.com""#).unwrap();
+        assert_eq!(email.as_str(), "test@example.com");
     }
 
     #[test]
-    fn test_user_id_negative_invalid() {
-        let result = UserId::new(-1);
+    fn test_email_deserialize_invalid() {
+        let result: Result<Email, _> = serde_json::from_str(r#""invalid-email""#);
         assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("Invalid email format"));
     }
 
     #[test]
-    fn test_user_id_into_i64() {
-        let id = UserId::new(42).unwrap();
-        let value: i64 = id.into();
-        assert_eq!(value, 42);
+    fn test_email_roundtrip() {
+        let original = Email::new("user@domain.com").unwrap();
+        let json = serde_json::to_string(&original).unwrap();
+        let deserialized: Email = serde_json::from_str(&json).unwrap();
+        assert_eq!(original, deserialized);
+    }
+
+    // ==================
+    // Age serde tests
+    // ==================
+    #[test]
+    fn test_age_serialize() {
+        let age = Age::new(25).unwrap();
+        let json = serde_json::to_string(&age).unwrap();
+        assert_eq!(json, "25");
     }
 
     #[test]
-    fn test_user_id_display() {
-        let id = UserId::new(123).unwrap();
-        assert_eq!(format!("{}", id), "123");
+    fn test_age_deserialize_valid() {
+        let age: Age = serde_json::from_str("30").unwrap();
+        assert_eq!(age.value(), 30);
+    }
+
+    #[test]
+    fn test_age_deserialize_invalid_negative() {
+        let result: Result<Age, _> = serde_json::from_str("-5");
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("Age must be between"));
+    }
+
+    #[test]
+    fn test_age_deserialize_invalid_over_max() {
+        let result: Result<Age, _> = serde_json::from_str("200");
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("Age must be between"));
+    }
+
+    #[test]
+    fn test_age_roundtrip() {
+        let original = Age::new(42).unwrap();
+        let json = serde_json::to_string(&original).unwrap();
+        let deserialized: Age = serde_json::from_str(&json).unwrap();
+        assert_eq!(original, deserialized);
     }
 }

@@ -1,7 +1,7 @@
 use chrono::Utc;
 use hex_play_core::{
     Error,
-    models::user_info::UserInfo,
+    models::{Age, user_info::UserInfo},
     repositories::{Transaction, UserInfoRepository},
 };
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, QueryFilter, prelude::Uuid};
@@ -17,7 +17,7 @@ impl From<user_info::Model> for UserInfo {
         Self {
             id: model.id,
             user_token: model.user_token,
-            age: model.age,
+            age: Age::new(model.age).expect("database age should be valid"),
             created_at: model.created_at.with_timezone(&Utc),
             updated_at: model.updated_at.with_timezone(&Utc),
         }
@@ -35,12 +35,12 @@ impl UserInfoRepositoryAdapter {
 #[async_trait::async_trait]
 impl UserInfoRepository for UserInfoRepositoryAdapter {
     #[tracing::instrument(level = "trace", skip(self, transaction))]
-    async fn add_info(&self, transaction: &dyn Transaction, user_token: Uuid, age: i16) -> Result<UserInfo, Error> {
+    async fn add_info(&self, transaction: &dyn Transaction, user_token: Uuid, age: Age) -> Result<UserInfo, Error> {
         let transaction = TransactionImpl::get_db_transaction(transaction)?;
 
         let model = user_info::ActiveModel {
             user_token: Set(user_token),
-            age: Set(age),
+            age: Set(age.value()),
             created_at: Set(chrono::Utc::now().into()),
             updated_at: Set(chrono::Utc::now().into()),
             ..Default::default()
@@ -52,7 +52,7 @@ impl UserInfoRepository for UserInfoRepositoryAdapter {
     }
 
     #[tracing::instrument(level = "trace", skip(self, transaction))]
-    async fn update_info(&self, transaction: &dyn Transaction, user_token: Uuid, age: i16) -> Result<UserInfo, Error> {
+    async fn update_info(&self, transaction: &dyn Transaction, user_token: Uuid, age: Age) -> Result<UserInfo, Error> {
         let tx = TransactionImpl::get_db_transaction(transaction)?;
 
         // Find existing record by user_token
@@ -66,7 +66,7 @@ impl UserInfoRepository for UserInfoRepositoryAdapter {
             Some(existing) => {
                 // Update existing record
                 let mut updater: user_info::ActiveModel = existing.into();
-                updater.age = Set(age);
+                updater.age = Set(age.value());
                 if updater.is_changed() {
                     updater.updated_at = Set(Utc::now().into());
                 }

@@ -65,7 +65,7 @@ impl UserService for GrpcUserService {
 pub(crate) mod handler {
     use hex_play_core::{
         Error, RepositoryError,
-        models::{NewUser, PartialUserUpdate},
+        models::{Age, Email, NewUser, PartialUserUpdate},
         services::CoreServices,
     };
     use uuid::Uuid;
@@ -79,16 +79,16 @@ pub(crate) mod handler {
             id: user.id,
             token: user.token.to_string(),
             name: user.name,
-            email: user.email,
-            age: user.age as i32,
+            email: user.email.to_string(),
+            age: user.age.value() as i32,
         }
     }
 
     pub(crate) async fn create(core_services: &CoreServices, request: CreateUserRequest) -> Result<ProtoUser, Error> {
         let new_user = NewUser {
             name: request.name,
-            email: request.email,
-            age: request.age as i16,
+            email: Email::new(request.email)?,
+            age: Age::new(request.age as i16)?,
         };
         let user = core_services.user_service.add_user(new_user).await?;
         Ok(to_proto(user))
@@ -122,8 +122,8 @@ pub(crate) mod handler {
 
         let update = PartialUserUpdate {
             name: request.name,
-            email: request.email,
-            age: request.age.map(|a| a as i16),
+            email: request.email.map(Email::new).transpose()?,
+            age: request.age.map(|a| Age::new(a as i16)).transpose()?,
         };
         update.apply_to(&mut user);
 
@@ -696,7 +696,10 @@ mod tests {
 
 /// Client-side API (returns core domain types)
 pub mod api {
-    use hex_play_core::{Error, models::User};
+    use hex_play_core::{
+        Error,
+        models::{Age, Email, User},
+    };
     use uuid::Uuid;
 
     use crate::grpc::user_proto::{
@@ -709,8 +712,8 @@ pub mod api {
             id: proto.id,
             token: proto.token.parse::<Uuid>().map_err(|e| Error::InvalidUuid(e.to_string()))?,
             name: proto.name,
-            email: proto.email,
-            age: proto.age as i16,
+            email: Email::new(proto.email)?,
+            age: Age::new(proto.age as i16)?,
             ..Default::default()
         })
     }
