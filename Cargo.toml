@@ -47,6 +47,10 @@ features = ["tokio", "server-auto", "http1"]
 version = "1.46.2"
 features = ["filters"]
 
+[workspace.dependencies.rust-embed]
+version = "8.11.0"
+features = ["debug-embed"]
+
 [workspace.dependencies.sea-orm]
 version = "2.0.0-rc.30"
 features = [
@@ -58,8 +62,8 @@ features = [
     "with-chrono",
     "with-json",
     "with-uuid",
-    "entity-registry",
-    "schema-sync",
+    # "entity-registry",
+    # "schema-sync",
 ]
 
 [workspace.dependencies.sea-orm-migration]

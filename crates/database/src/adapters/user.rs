@@ -30,14 +30,17 @@ impl From<users::Model> for User {
     }
 }
 
-fn to_user(user: users::Model, user_info: Option<user_info::Model>) -> User {
-    let mut user: User = user.into();
-
-    if let Some(user_info) = user_info {
-        user.age = user_info.age;
-    };
-
-    user
+fn to_user(user: users::Model, user_infos: Vec<user_info::Model>) -> User {
+    User {
+        id: user.id,
+        version: user.version,
+        token: user.token,
+        name: user.name,
+        email: user.email,
+        age: user_infos.first().unwrap().age,
+        created_at: user.created_at.with_timezone(&Utc),
+        updated_at: user.updated_at.with_timezone(&Utc),
+    }
 }
 
 pub struct UserRepositoryAdapter;
@@ -58,6 +61,9 @@ impl UserRepository for UserRepositoryAdapter {
             name: Set(user.name),
             email: Set(user.email),
             version: Set(0),
+            // token: Set(Uuid::new_v4()),
+            // created_at: Set(chrono::Utc::now().into()),
+            // updated_at: Set(chrono::Utc::now().into()),
             ..Default::default()
         };
 
@@ -90,6 +96,10 @@ impl UserRepository for UserRepositoryAdapter {
         if existing.email != user.email {
             updater.email = Set(user.email);
         }
+        // if updater.is_changed() {
+        //     updater.version = Set(user.version + 1);
+        //     updater.updated_at = Set(Utc::now().into());
+        // }
 
         let updated = updater.update(transaction).await.map_err(handle_dberr)?;
 
@@ -143,9 +153,9 @@ impl UserRepository for UserRepositoryAdapter {
         let page_size = page_size.unwrap_or(DEFAULT_PAGE_SIZE).min(MAX_PAGE_SIZE);
         query = query.limit(page_size);
 
-        let users_with_info = query.find_also_related(UserInfo).all(transaction).await.map_err(handle_dberr)?;
+        let users = query.find_with_related(UserInfo).all(transaction).await.map_err(handle_dberr)?;
 
-        Ok(users_with_info.into_iter().map(|(u, ui)| to_user(u, ui)).collect())
+        Ok(users.into_iter().map(|(u, ui)| to_user(u, ui)).collect())
     }
 
     #[tracing::instrument(level = "trace", skip(self, transaction))]
@@ -190,10 +200,7 @@ mod tests {
     use sea_orm::{DatabaseBackend, MockDatabase, MockExecResult, prelude::Uuid};
 
     use super::UserRepositoryAdapter;
-    use crate::{
-        entities::{user_info, users},
-        test_support::create_mock_repository_service_with_db,
-    };
+    use crate::{entities::users, test_support::create_mock_repository_service_with_db};
 
     fn create_test_user_model(id: i64, name: &str, email: &str) -> users::Model {
         users::Model {
@@ -317,10 +324,10 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_list_users_success() {
-        let user1 = create_test_user_model(1, "John Doe", "john@example.com");
-        let user2 = create_test_user_model(2, "Jane Doe", "jane@example.com");
-        let mock_db = MockDatabase::new(DatabaseBackend::Postgres)
-            .append_query_results([vec![(user1, Option::<user_info::Model>::None), (user2, Option::<user_info::Model>::None)]]);
+        let mock_db = MockDatabase::new(DatabaseBackend::Postgres).append_query_results([[
+            create_test_user_model(1, "John Doe", "john@example.com"),
+            create_test_user_model(2, "Jane Doe", "jane@example.com"),
+        ]]);
 
         let repo_service = create_mock_repository_service_with_db(mock_db);
         let tx = repo_service.repository.begin().await.unwrap();
@@ -336,7 +343,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_list_users_empty() {
-        let mock_db = MockDatabase::new(DatabaseBackend::Postgres).append_query_results([Vec::<(users::Model, Option<user_info::Model>)>::new()]);
+        let mock_db = MockDatabase::new(DatabaseBackend::Postgres).append_query_results([Vec::<users::Model>::new()]);
 
         let repo_service = create_mock_repository_service_with_db(mock_db);
         let tx = repo_service.repository.begin().await.unwrap();

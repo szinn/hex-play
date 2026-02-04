@@ -26,7 +26,7 @@ changelog:
 
 [doc('Build all applications')]
 build:
-  cargo build --bin hex-play
+  cargo build --bin hex-play --bin migrator
 
 [doc('Run Clippy on codebase for linting')]
 clippy:
@@ -85,3 +85,13 @@ create-database:
     GRANT ALL ON DATABASE "$PGDATABASE" TO "$PGUSER";
   """
   echo $SQL | PGUSER=$PGADMINUSER PGPASSWORD=$PGADMINPASSWORD PGDATABASE= psql-18 postgres
+
+[doc('Redo all migrations')]
+migrations:
+  DATABASE_URL=$HPLAY__DATABASE__DATABASE_URL cargo run --bin migrator -- down -n 100
+  DATABASE_URL=$HPLAY__DATABASE__DATABASE_URL cargo run --bin migrator -- up
+
+[doc('Create entity classes')]
+entities:
+  DATABASE_URL=$HPLAY__DATABASE__DATABASE_URL cargo run --bin migrator -- up
+  DATABASE_URL=$HPLAY__DATABASE__DATABASE_URL sea-orm-cli generate entity -o crates/database/src/entities --with-serde both --entity-format dense

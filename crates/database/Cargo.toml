@@ -9,11 +9,14 @@ rust-version = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
 
+build = "build.rs"
+
 [dependencies]
 hex-play-core.workspace = true
 
 async-trait.workspace = true
 chrono.workspace = true
+rust-embed.workspace = true
 sea-orm.workspace = true
 sea-orm-migration.workspace = true
 serde.workspace = true
