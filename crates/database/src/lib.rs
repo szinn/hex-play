@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use hex_play_core::{Error, repositories::RepositoryService};
+use hex_play_core::{
+    Error,
+    repositories::{Repository, RepositoryService, RepositoryServiceBuilder, UserInfoRepository, UserRepository},
+};
 use sea_orm::DatabaseConnection;
 
 use crate::adapters::{user::UserRepositoryAdapter, user_info::UserInfoRepositoryAdapter};
@@ -26,11 +29,12 @@ pub async fn create_repository_service(database: DatabaseConnection) -> Result<A
         .await
         .map_err(handle_dberr)?;
 
-    let repository = RepositoryImpl::new(database);
-    let user_repository = UserRepositoryAdapter::new();
-    let user_info_repository = UserInfoRepositoryAdapter::new();
-
-    let repository_service = RepositoryService::new(Arc::new(repository), Arc::new(user_repository), Arc::new(user_info_repository));
+    let repository_service = RepositoryServiceBuilder::default()
+        .repository(Arc::new(RepositoryImpl::new(database)) as Arc<dyn Repository>)
+        .user_repository(Arc::new(UserRepositoryAdapter::new()) as Arc<dyn UserRepository>)
+        .user_info_repository(Arc::new(UserInfoRepositoryAdapter::new()) as Arc<dyn UserInfoRepository>)
+        .build()
+        .map_err(|e| Error::Infrastructure(e.to_string()))?;
 
     Ok(Arc::new(repository_service))
 }
@@ -39,7 +43,7 @@ pub async fn create_repository_service(database: DatabaseConnection) -> Result<A
 pub mod test_support {
     use std::sync::Arc;
 
-    use hex_play_core::repositories::RepositoryService;
+    use hex_play_core::repositories::{Repository, RepositoryService, RepositoryServiceBuilder, UserInfoRepository, UserRepository};
     use sea_orm::{DatabaseBackend, DatabaseConnection, MockDatabase};
 
     use crate::{
@@ -61,14 +65,13 @@ pub mod test_support {
     }
 
     fn create_repository_service_from_connection(database: DatabaseConnection) -> Arc<RepositoryService> {
-        let repository = RepositoryImpl::new(database);
-        let user_repository = UserRepositoryAdapter::new();
-        let user_info_repository = UserInfoRepositoryAdapter::new();
-
-        Arc::new(RepositoryService::new(
-            Arc::new(repository),
-            Arc::new(user_repository),
-            Arc::new(user_info_repository),
-        ))
+        Arc::new(
+            RepositoryServiceBuilder::default()
+                .repository(Arc::new(RepositoryImpl::new(database)) as Arc<dyn Repository>)
+                .user_repository(Arc::new(UserRepositoryAdapter::new()) as Arc<dyn UserRepository>)
+                .user_info_repository(Arc::new(UserInfoRepositoryAdapter::new()) as Arc<dyn UserInfoRepository>)
+                .build()
+                .expect("All required fields provided"),
+        )
     }
 }

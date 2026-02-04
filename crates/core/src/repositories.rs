@@ -1,5 +1,7 @@
 use std::{any::Any, future::Future, pin::Pin, sync::Arc};
 
+use derive_builder::Builder;
+
 pub mod user;
 pub mod user_info;
 
@@ -8,6 +10,8 @@ pub use user_info::UserInfoRepository;
 
 use crate::Error;
 
+#[derive(Builder)]
+#[builder(pattern = "owned")]
 pub struct RepositoryService {
     repository: Arc<dyn Repository>,
     user_repository: Arc<dyn UserRepository>,
@@ -15,16 +19,6 @@ pub struct RepositoryService {
 }
 
 impl RepositoryService {
-    /// Creates a new RepositoryService with the provided repository
-    /// implementations.
-    pub fn new(repository: Arc<dyn Repository>, user_repository: Arc<dyn UserRepository>, user_info_repository: Arc<dyn UserInfoRepository>) -> Self {
-        Self {
-            repository,
-            user_repository,
-            user_info_repository,
-        }
-    }
-
     /// Returns a reference to the main repository for transaction management.
     pub fn repository(&self) -> &Arc<dyn Repository> {
         &self.repository

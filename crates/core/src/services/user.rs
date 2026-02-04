@@ -117,7 +117,7 @@ mod tests {
     use crate::{
         Error, RepositoryError,
         models::{Age, Email, NewUser, User, user_info::UserInfo},
-        repositories::{Repository, RepositoryService, Transaction, UserInfoRepository, UserRepository},
+        repositories::{Repository, RepositoryServiceBuilder, Transaction, UserInfoRepository, UserRepository},
     };
 
     // ===================
@@ -310,11 +310,14 @@ mod tests {
     }
 
     fn create_use_cases_with_info(mock_user_repository: MockUserRepository, mock_user_info_repository: MockUserInfoRepository) -> UserServiceImpl {
-        let repository_service = Arc::new(RepositoryService::new(
-            Arc::new(MockRepository),
-            Arc::new(mock_user_repository),
-            Arc::new(mock_user_info_repository),
-        ));
+        let repository_service = Arc::new(
+            RepositoryServiceBuilder::default()
+                .repository(Arc::new(MockRepository) as Arc<dyn Repository>)
+                .user_repository(Arc::new(mock_user_repository) as Arc<dyn UserRepository>)
+                .user_info_repository(Arc::new(mock_user_info_repository) as Arc<dyn UserInfoRepository>)
+                .build()
+                .expect("All required fields provided"),
+        );
         UserServiceImpl::new(repository_service)
     }
 
