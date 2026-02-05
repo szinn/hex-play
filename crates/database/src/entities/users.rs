@@ -15,11 +15,10 @@ pub struct Model {
     pub name: String,
     #[sea_orm(unique)]
     pub email: String,
+    pub age: i16,
     pub version: i64,
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
-    #[sea_orm(has_one)]
-    pub user_info: HasOne<super::user_info::Entity>,
 }
 
 #[async_trait::async_trait]

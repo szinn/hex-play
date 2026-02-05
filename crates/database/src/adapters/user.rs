@@ -7,10 +7,7 @@ use hex_play_core::{
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, ModelTrait, QueryFilter, QueryOrder, QuerySelect, prelude::Uuid};
 
 use crate::{
-    entities::{
-        prelude::{self, UserInfo},
-        user_info, users,
-    },
+    entities::{prelude, users},
     error::handle_dberr,
     transaction::TransactionImpl,
 };
@@ -23,21 +20,11 @@ impl From<users::Model> for User {
             token: model.token,
             name: model.name,
             email: Email::new(model.email).expect("database email should be valid"),
-            age: Age::default(), // Age is stored in user_info table, populated by service layer
+            age: Age::new(model.age).expect("database age should be valid"),
             created_at: model.created_at.with_timezone(&Utc),
             updated_at: model.updated_at.with_timezone(&Utc),
         }
     }
-}
-
-fn to_user(user: users::Model, user_info: Option<user_info::Model>) -> User {
-    let mut user: User = user.into();
-
-    if let Some(user_info) = user_info {
-        user.age = Age::new(user_info.age).expect("database age should be valid");
-    };
-
-    user
 }
 
 pub struct UserRepositoryAdapter;
@@ -57,6 +44,7 @@ impl UserRepository for UserRepositoryAdapter {
         let model = users::ActiveModel {
             name: Set(user.name),
             email: Set(user.email.into_inner()),
+            age: Set(user.age.value()),
             version: Set(0),
             ..Default::default()
         };
@@ -89,6 +77,9 @@ impl UserRepository for UserRepositoryAdapter {
         }
         if existing.email != user.email.as_str() {
             updater.email = Set(user.email.into_inner());
+        }
+        if existing.age != user.age.value() {
+            updater.age = Set(user.age.value());
         }
 
         let updated = updater.update(transaction).await.map_err(handle_dberr)?;
@@ -143,9 +134,9 @@ impl UserRepository for UserRepositoryAdapter {
         let page_size = page_size.unwrap_or(DEFAULT_PAGE_SIZE).min(MAX_PAGE_SIZE);
         query = query.limit(page_size);
 
-        let users_with_info = query.find_also_related(UserInfo).all(transaction).await.map_err(handle_dberr)?;
+        let users = query.all(transaction).await.map_err(handle_dberr)?;
 
-        Ok(users_with_info.into_iter().map(|(u, ui)| to_user(u, ui)).collect())
+        Ok(users.into_iter().map(Into::into).collect())
     }
 
     #[tracing::instrument(level = "trace", skip(self, transaction))]
@@ -194,17 +185,19 @@ mod tests {
     use sea_orm::{DatabaseBackend, MockDatabase, MockExecResult, prelude::Uuid};
 
     use super::UserRepositoryAdapter;
-    use crate::{
-        entities::{user_info, users},
-        test_support::create_mock_repository_service_with_db,
-    };
+    use crate::{entities::users, test_support::create_mock_repository_service_with_db};
 
     fn create_test_user_model(id: i64, name: &str, email: &str) -> users::Model {
+        create_test_user_model_with_age(id, name, email, 30)
+    }
+
+    fn create_test_user_model_with_age(id: i64, name: &str, email: &str, age: i16) -> users::Model {
         users::Model {
             id,
             token: Uuid::new_v4(),
             name: name.to_string(),
             email: email.to_string(),
+            age,
             version: 0,
             created_at: Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap().fixed_offset(),
             updated_at: Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap().fixed_offset(),
@@ -319,10 +312,9 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_list_users_success() {
-        let user1 = create_test_user_model(1, "John Doe", "john@example.com");
-        let user2 = create_test_user_model(2, "Jane Doe", "jane@example.com");
-        let mock_db = MockDatabase::new(DatabaseBackend::Postgres)
-            .append_query_results([vec![(user1, Option::<user_info::Model>::None), (user2, Option::<user_info::Model>::None)]]);
+        let user1 = create_test_user_model_with_age(1, "John Doe", "john@example.com", 30);
+        let user2 = create_test_user_model_with_age(2, "Jane Doe", "jane@example.com", 25);
+        let mock_db = MockDatabase::new(DatabaseBackend::Postgres).append_query_results([vec![user1, user2]]);
 
         let repo_service = create_mock_repository_service_with_db(mock_db);
         let tx = repo_service.repository().begin().await.unwrap();
@@ -333,12 +325,14 @@ mod tests {
         let users = result.unwrap();
         assert_eq!(users.len(), 2);
         assert_eq!(users[0].name, "John Doe");
+        assert_eq!(users[0].age.value(), 30);
         assert_eq!(users[1].name, "Jane Doe");
+        assert_eq!(users[1].age.value(), 25);
     }
 
     #[tokio::test]
     async fn test_list_users_empty() {
-        let mock_db = MockDatabase::new(DatabaseBackend::Postgres).append_query_results([Vec::<(users::Model, Option<user_info::Model>)>::new()]);
+        let mock_db = MockDatabase::new(DatabaseBackend::Postgres).append_query_results([Vec::<users::Model>::new()]);
 
         let repo_service = create_mock_repository_service_with_db(mock_db);
         let tx = repo_service.repository().begin().await.unwrap();

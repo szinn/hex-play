@@ -3,10 +3,8 @@ use std::{any::Any, future::Future, pin::Pin, sync::Arc};
 use derive_builder::Builder;
 
 pub mod user;
-pub mod user_info;
 
 pub use user::UserRepository;
-pub use user_info::UserInfoRepository;
 
 use crate::Error;
 
@@ -15,7 +13,6 @@ use crate::Error;
 pub struct RepositoryService {
     repository: Arc<dyn Repository>,
     user_repository: Arc<dyn UserRepository>,
-    user_info_repository: Arc<dyn UserInfoRepository>,
 }
 
 impl RepositoryService {
@@ -27,11 +24,6 @@ impl RepositoryService {
     /// Returns a reference to the user repository.
     pub fn user_repository(&self) -> &Arc<dyn UserRepository> {
         &self.user_repository
-    }
-
-    /// Returns a reference to the user info repository.
-    pub fn user_info_repository(&self) -> &Arc<dyn UserInfoRepository> {
-        &self.user_info_repository
     }
 }
 
@@ -55,10 +47,9 @@ pub trait Transaction: Any + Send + Sync {
 /// })
 ///
 /// // Multiple repositories
-/// with_transaction!(self, user_repository, user_info_repository, |tx| {
+/// with_transaction!(self, user_repository, order_repository, |tx| {
 ///     let user = user_repository.add_user(tx, user).await?;
-///     user_info_repository.add_info(tx, user.token, age).await?;
-///     Ok(user)
+///     order_repository.create_order(tx, user.id, order).await
 /// })
 /// ```
 #[macro_export]
@@ -82,10 +73,10 @@ macro_rules! with_transaction {
 /// })
 ///
 /// // Multiple repositories
-/// with_read_only_transaction!(self, user_repository, user_info_repository, |tx| {
+/// with_read_only_transaction!(self, user_repository, order_repository, |tx| {
 ///     let user = user_repository.find_by_id(tx, id).await?;
-///     let info = user_info_repository.find_by_token(tx, user.token).await?;
-///     Ok((user, info))
+///     let orders = order_repository.find_by_user(tx, user.id).await?;
+///     Ok((user, orders))
 /// })
 /// ```
 #[macro_export]
