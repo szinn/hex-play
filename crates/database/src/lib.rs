@@ -37,36 +37,3 @@ pub async fn create_repository_service(database: DatabaseConnection) -> Result<A
 
     Ok(Arc::new(repository_service))
 }
-
-#[cfg(test)]
-pub mod test_support {
-    use std::sync::Arc;
-
-    use hex_play_core::repositories::{Repository, RepositoryService, RepositoryServiceBuilder, UserRepository};
-    use sea_orm::{DatabaseBackend, DatabaseConnection, MockDatabase};
-
-    use crate::{RepositoryImpl, adapters::user::UserRepositoryAdapter};
-
-    /// Creates a RepositoryService with a mock database for testing.
-    pub fn create_mock_repository_service() -> Arc<RepositoryService> {
-        let mock_db = MockDatabase::new(DatabaseBackend::Postgres);
-        let database = mock_db.into_connection();
-        create_repository_service_from_connection(database)
-    }
-
-    /// Creates a RepositoryService from a pre-configured mock database.
-    pub fn create_mock_repository_service_with_db(mock_db: MockDatabase) -> Arc<RepositoryService> {
-        let database = mock_db.into_connection();
-        create_repository_service_from_connection(database)
-    }
-
-    fn create_repository_service_from_connection(database: DatabaseConnection) -> Arc<RepositoryService> {
-        Arc::new(
-            RepositoryServiceBuilder::default()
-                .repository(Arc::new(RepositoryImpl::new(database)) as Arc<dyn Repository>)
-                .user_repository(Arc::new(UserRepositoryAdapter::new()) as Arc<dyn UserRepository>)
-                .build()
-                .expect("All required fields provided"),
-        )
-    }
-}

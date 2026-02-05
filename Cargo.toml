@@ -53,10 +53,10 @@ features = ["filters"]
 version = "2.0.0-rc.30"
 features = [
     "debug-print",
-    "mock",
     "postgres-array",
     "runtime-tokio-rustls",
     "sqlx-postgres",
+    "sqlx-sqlite",
     "with-chrono",
     "with-json",
     "with-uuid",

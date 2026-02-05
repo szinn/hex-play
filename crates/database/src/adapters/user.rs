@@ -176,32 +176,20 @@ impl UserRepository for UserRepositoryAdapter {
 
 #[cfg(test)]
 mod tests {
-    use chrono::{TimeZone, Utc};
+    use std::sync::Arc;
+
     use hex_play_core::{
         Error, RepositoryError,
-        models::{Email, NewUser},
-        repositories::UserRepository,
+        models::{Email, NewUser, User},
+        repositories::RepositoryService,
     };
-    use sea_orm::{DatabaseBackend, MockDatabase, MockExecResult, prelude::Uuid};
+    use sea_orm::{Database, prelude::Uuid};
 
-    use super::UserRepositoryAdapter;
-    use crate::{entities::users, test_support::create_mock_repository_service_with_db};
+    use crate::create_repository_service;
 
-    fn create_test_user_model(id: i64, name: &str, email: &str) -> users::Model {
-        create_test_user_model_with_age(id, name, email, 30)
-    }
-
-    fn create_test_user_model_with_age(id: i64, name: &str, email: &str, age: i16) -> users::Model {
-        users::Model {
-            id,
-            token: Uuid::new_v4(),
-            name: name.to_string(),
-            email: email.to_string(),
-            age,
-            version: 0,
-            created_at: Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap().fixed_offset(),
-            updated_at: Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap().fixed_offset(),
-        }
+    async fn setup() -> Arc<RepositoryService> {
+        let db = Database::connect("sqlite::memory:").await.unwrap();
+        create_repository_service(db).await.unwrap()
     }
 
     // ===================
@@ -209,14 +197,11 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_add_user_success() {
-        let mock_db = MockDatabase::new(DatabaseBackend::Postgres).append_query_results([[create_test_user_model(1, "John Doe", "john@example.com")]]);
-
-        let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository().begin().await.unwrap();
+        let svc = setup().await;
+        let tx = svc.repository().begin().await.unwrap();
 
         let new_user = NewUser::new("John Doe", "john@example.com", 30).unwrap();
-
-        let result = repo_service.user_repository().add_user(&*tx, new_user).await;
+        let result = svc.user_repository().add_user(&*tx, new_user).await;
 
         assert!(result.is_ok());
         let user = result.unwrap();
@@ -230,29 +215,31 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_find_by_id_found() {
-        let mock_db = MockDatabase::new(DatabaseBackend::Postgres).append_query_results([[create_test_user_model(1, "John Doe", "john@example.com")]]);
+        let svc = setup().await;
+        let tx = svc.repository().begin().await.unwrap();
 
-        let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository().begin().await.unwrap();
+        let inserted = svc
+            .user_repository()
+            .add_user(&*tx, NewUser::new("John Doe", "john@example.com", 30).unwrap())
+            .await
+            .unwrap();
 
-        let result = repo_service.user_repository().find_by_id(&*tx, 1).await;
+        let result = svc.user_repository().find_by_id(&*tx, inserted.id).await;
 
         assert!(result.is_ok());
         let user = result.unwrap();
         assert!(user.is_some());
         let user = user.unwrap();
-        assert_eq!(user.id, 1);
+        assert_eq!(user.id, inserted.id);
         assert_eq!(user.name, "John Doe");
     }
 
     #[tokio::test]
     async fn test_find_by_id_not_found() {
-        let mock_db = MockDatabase::new(DatabaseBackend::Postgres).append_query_results([Vec::<users::Model>::new()]);
+        let svc = setup().await;
+        let tx = svc.repository().begin().await.unwrap();
 
-        let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository().begin().await.unwrap();
-
-        let result = repo_service.user_repository().find_by_id(&*tx, 999).await;
+        let result = svc.user_repository().find_by_id(&*tx, 999).await;
 
         assert!(result.is_ok());
         assert!(result.unwrap().is_none());
@@ -260,15 +247,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_find_by_id_invalid_id() {
-        let adapter = UserRepositoryAdapter::new();
+        let svc = setup().await;
+        let tx = svc.repository().begin().await.unwrap();
 
-        // Create a mock transaction - we won't actually use it since validation fails
-        // first
-        let mock_db = MockDatabase::new(DatabaseBackend::Postgres);
-        let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository().begin().await.unwrap();
-
-        let result = adapter.find_by_id(&*tx, -1).await;
+        let result = svc.user_repository().find_by_id(&*tx, -1).await;
 
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), Error::InvalidId(-1)));
@@ -279,13 +261,16 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_find_by_email_found() {
-        let mock_db = MockDatabase::new(DatabaseBackend::Postgres).append_query_results([[create_test_user_model(1, "John Doe", "john@example.com")]]);
+        let svc = setup().await;
+        let tx = svc.repository().begin().await.unwrap();
 
-        let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository().begin().await.unwrap();
+        svc.user_repository()
+            .add_user(&*tx, NewUser::new("John Doe", "john@example.com", 30).unwrap())
+            .await
+            .unwrap();
 
         let email = Email::new("john@example.com").unwrap();
-        let result = repo_service.user_repository().find_by_email(&*tx, &email).await;
+        let result = svc.user_repository().find_by_email(&*tx, &email).await;
 
         assert!(result.is_ok());
         let user = result.unwrap();
@@ -295,13 +280,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_find_by_email_not_found() {
-        let mock_db = MockDatabase::new(DatabaseBackend::Postgres).append_query_results([Vec::<users::Model>::new()]);
-
-        let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository().begin().await.unwrap();
+        let svc = setup().await;
+        let tx = svc.repository().begin().await.unwrap();
 
         let email = Email::new("unknown@example.com").unwrap();
-        let result = repo_service.user_repository().find_by_email(&*tx, &email).await;
+        let result = svc.user_repository().find_by_email(&*tx, &email).await;
 
         assert!(result.is_ok());
         assert!(result.unwrap().is_none());
@@ -312,14 +295,19 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_list_users_success() {
-        let user1 = create_test_user_model_with_age(1, "John Doe", "john@example.com", 30);
-        let user2 = create_test_user_model_with_age(2, "Jane Doe", "jane@example.com", 25);
-        let mock_db = MockDatabase::new(DatabaseBackend::Postgres).append_query_results([vec![user1, user2]]);
+        let svc = setup().await;
+        let tx = svc.repository().begin().await.unwrap();
 
-        let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository().begin().await.unwrap();
+        svc.user_repository()
+            .add_user(&*tx, NewUser::new("John Doe", "john@example.com", 30).unwrap())
+            .await
+            .unwrap();
+        svc.user_repository()
+            .add_user(&*tx, NewUser::new("Jane Doe", "jane@example.com", 25).unwrap())
+            .await
+            .unwrap();
 
-        let result = repo_service.user_repository().list_users(&*tx, None, None).await;
+        let result = svc.user_repository().list_users(&*tx, None, None).await;
 
         assert!(result.is_ok());
         let users = result.unwrap();
@@ -332,12 +320,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_list_users_empty() {
-        let mock_db = MockDatabase::new(DatabaseBackend::Postgres).append_query_results([Vec::<users::Model>::new()]);
+        let svc = setup().await;
+        let tx = svc.repository().begin().await.unwrap();
 
-        let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository().begin().await.unwrap();
-
-        let result = repo_service.user_repository().list_users(&*tx, None, None).await;
+        let result = svc.user_repository().list_users(&*tx, None, None).await;
 
         assert!(result.is_ok());
         assert!(result.unwrap().is_empty());
@@ -345,11 +331,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_list_users_invalid_start_id() {
-        let mock_db = MockDatabase::new(DatabaseBackend::Postgres);
-        let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository().begin().await.unwrap();
+        let svc = setup().await;
+        let tx = svc.repository().begin().await.unwrap();
 
-        let result = repo_service.user_repository().list_users(&*tx, Some(-1), None).await;
+        let result = svc.user_repository().list_users(&*tx, Some(-1), None).await;
 
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), Error::InvalidId(-1)));
@@ -357,11 +342,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_list_users_invalid_page_size() {
-        let mock_db = MockDatabase::new(DatabaseBackend::Postgres);
-        let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository().begin().await.unwrap();
+        let svc = setup().await;
+        let tx = svc.repository().begin().await.unwrap();
 
-        let result = repo_service.user_repository().list_users(&*tx, None, Some(0)).await;
+        let result = svc.user_repository().list_users(&*tx, None, Some(0)).await;
 
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), Error::InvalidPageSize(0)));
@@ -372,25 +356,20 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_update_user_success() {
-        let existing = create_test_user_model(1, "John Doe", "john@example.com");
-        let updated = create_test_user_model(1, "John Updated", "john.updated@example.com");
+        let svc = setup().await;
+        let tx = svc.repository().begin().await.unwrap();
 
-        let mock_db = MockDatabase::new(DatabaseBackend::Postgres)
-            .append_query_results([[existing]])
-            .append_query_results([[updated.clone()]]);
-
-        let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository().begin().await.unwrap();
-
-        let user = hex_play_core::models::UserBuilder::default()
-            .id(1)
-            .version(0)
-            .name("John Updated".into())
-            .email(Email::new("john.updated@example.com").unwrap())
-            .build()
+        let inserted = svc
+            .user_repository()
+            .add_user(&*tx, NewUser::new("John Doe", "john@example.com", 30).unwrap())
+            .await
             .unwrap();
 
-        let result = repo_service.user_repository().update_user(&*tx, user).await;
+        let mut user = inserted;
+        user.name = "John Updated".to_string();
+        user.email = Email::new("john.updated@example.com").unwrap();
+
+        let result = svc.user_repository().update_user(&*tx, user).await;
 
         assert!(result.is_ok());
         let user = result.unwrap();
@@ -399,20 +378,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_update_user_not_found() {
-        let mock_db = MockDatabase::new(DatabaseBackend::Postgres).append_query_results([Vec::<users::Model>::new()]);
+        let svc = setup().await;
+        let tx = svc.repository().begin().await.unwrap();
 
-        let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository().begin().await.unwrap();
+        let user = User::test(999, "Nonexistent", "none@example.com");
 
-        let user = hex_play_core::models::UserBuilder::default()
-            .id(999)
-            .version(0)
-            .name("Nonexistent".into())
-            .email(Email::new("none@example.com").unwrap())
-            .build()
-            .unwrap();
-
-        let result = repo_service.user_repository().update_user(&*tx, user).await;
+        let result = svc.user_repository().update_user(&*tx, user).await;
 
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), Error::RepositoryError(RepositoryError::NotFound)));
@@ -420,22 +391,20 @@ mod tests {
 
     #[tokio::test]
     async fn test_update_user_version_conflict() {
-        let existing = create_test_user_model(1, "John Doe", "john@example.com");
+        let svc = setup().await;
+        let tx = svc.repository().begin().await.unwrap();
 
-        let mock_db = MockDatabase::new(DatabaseBackend::Postgres).append_query_results([[existing]]);
-
-        let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository().begin().await.unwrap();
-
-        let user = hex_play_core::models::UserBuilder::default()
-            .id(1)
-            .version(99) // Wrong version
-            .name("John Updated".into())
-            .email(Email::new("john@example.com").unwrap())
-            .build()
+        let inserted = svc
+            .user_repository()
+            .add_user(&*tx, NewUser::new("John Doe", "john@example.com", 30).unwrap())
+            .await
             .unwrap();
 
-        let result = repo_service.user_repository().update_user(&*tx, user).await;
+        let mut user = inserted;
+        user.version = 99; // Wrong version
+        user.name = "John Updated".to_string();
+
+        let result = svc.user_repository().update_user(&*tx, user).await;
 
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), Error::RepositoryError(RepositoryError::Conflict)));
@@ -443,19 +412,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_update_user_invalid_id() {
-        let mock_db = MockDatabase::new(DatabaseBackend::Postgres);
-        let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository().begin().await.unwrap();
+        let svc = setup().await;
+        let tx = svc.repository().begin().await.unwrap();
 
-        let user = hex_play_core::models::UserBuilder::default()
-            .id(-1)
-            .version(0)
-            .name("Invalid".into())
-            .email(Email::new("invalid@example.com").unwrap())
-            .build()
-            .unwrap();
+        let user = User::test(-1, "Invalid", "invalid@example.com");
 
-        let result = repo_service.user_repository().update_user(&*tx, user).await;
+        let result = svc.user_repository().update_user(&*tx, user).await;
 
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), Error::InvalidId(-1)));
@@ -466,27 +428,16 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_delete_user_success() {
-        let existing = create_test_user_model(1, "John Doe", "john@example.com");
+        let svc = setup().await;
+        let tx = svc.repository().begin().await.unwrap();
 
-        let mock_db = MockDatabase::new(DatabaseBackend::Postgres)
-            .append_query_results([[existing.clone()]])
-            .append_exec_results([MockExecResult {
-                last_insert_id: 0,
-                rows_affected: 1,
-            }]);
-
-        let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository().begin().await.unwrap();
-
-        let user = hex_play_core::models::UserBuilder::default()
-            .id(1)
-            .version(0)
-            .name("John Doe".into())
-            .email(Email::new("john@example.com").unwrap())
-            .build()
+        let inserted = svc
+            .user_repository()
+            .add_user(&*tx, NewUser::new("John Doe", "john@example.com", 30).unwrap())
+            .await
             .unwrap();
 
-        let result = repo_service.user_repository().delete_user(&*tx, user).await;
+        let result = svc.user_repository().delete_user(&*tx, inserted).await;
 
         assert!(result.is_ok());
         let deleted = result.unwrap();
@@ -496,20 +447,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_user_not_found() {
-        let mock_db = MockDatabase::new(DatabaseBackend::Postgres).append_query_results([Vec::<users::Model>::new()]);
+        let svc = setup().await;
+        let tx = svc.repository().begin().await.unwrap();
 
-        let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository().begin().await.unwrap();
+        let user = User::test(999, "Nonexistent", "none@example.com");
 
-        let user = hex_play_core::models::UserBuilder::default()
-            .id(999)
-            .version(0)
-            .name("Nonexistent".into())
-            .email(Email::new("none@example.com").unwrap())
-            .build()
-            .unwrap();
-
-        let result = repo_service.user_repository().delete_user(&*tx, user).await;
+        let result = svc.user_repository().delete_user(&*tx, user).await;
 
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), Error::RepositoryError(RepositoryError::NotFound)));
@@ -517,22 +460,19 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_user_version_conflict() {
-        let existing = create_test_user_model(1, "John Doe", "john@example.com");
+        let svc = setup().await;
+        let tx = svc.repository().begin().await.unwrap();
 
-        let mock_db = MockDatabase::new(DatabaseBackend::Postgres).append_query_results([[existing]]);
-
-        let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository().begin().await.unwrap();
-
-        let user = hex_play_core::models::UserBuilder::default()
-            .id(1)
-            .version(99) // Wrong version
-            .name("John Doe".into())
-            .email(Email::new("john@example.com").unwrap())
-            .build()
+        let inserted = svc
+            .user_repository()
+            .add_user(&*tx, NewUser::new("John Doe", "john@example.com", 30).unwrap())
+            .await
             .unwrap();
 
-        let result = repo_service.user_repository().delete_user(&*tx, user).await;
+        let mut user = inserted;
+        user.version = 99; // Wrong version
+
+        let result = svc.user_repository().delete_user(&*tx, user).await;
 
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), Error::RepositoryError(RepositoryError::Conflict)));
@@ -543,31 +483,32 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_find_by_token_found() {
-        let test_user = create_test_user_model(1, "John Doe", "john@example.com");
-        let token = test_user.token;
-        let mock_db = MockDatabase::new(DatabaseBackend::Postgres).append_query_results([[test_user]]);
+        let svc = setup().await;
+        let tx = svc.repository().begin().await.unwrap();
 
-        let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository().begin().await.unwrap();
+        let inserted = svc
+            .user_repository()
+            .add_user(&*tx, NewUser::new("John Doe", "john@example.com", 30).unwrap())
+            .await
+            .unwrap();
+        let token = inserted.token;
 
-        let result = repo_service.user_repository().find_by_token(&*tx, token).await;
+        let result = svc.user_repository().find_by_token(&*tx, token).await;
 
         assert!(result.is_ok());
         let user = result.unwrap();
         assert!(user.is_some());
         let user = user.unwrap();
-        assert_eq!(user.id, 1);
+        assert_eq!(user.id, inserted.id);
         assert_eq!(user.token, token);
     }
 
     #[tokio::test]
     async fn test_find_by_token_not_found() {
-        let mock_db = MockDatabase::new(DatabaseBackend::Postgres).append_query_results([Vec::<users::Model>::new()]);
+        let svc = setup().await;
+        let tx = svc.repository().begin().await.unwrap();
 
-        let repo_service = create_mock_repository_service_with_db(mock_db);
-        let tx = repo_service.repository().begin().await.unwrap();
-
-        let result = repo_service.user_repository().find_by_token(&*tx, Uuid::new_v4()).await;
+        let result = svc.user_repository().find_by_token(&*tx, Uuid::new_v4()).await;
 
         assert!(result.is_ok());
         assert!(result.unwrap().is_none());
