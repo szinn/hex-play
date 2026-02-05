@@ -5,5 +5,6 @@ pipx_uvx = true
 "aqua:astral-sh/uv" = "latest"
 "git-cliff" = "latest"
 "node" = "24"
+"npm:renovate" = "latest"
 "prettier" = "latest"
 protobuf = "latest"
