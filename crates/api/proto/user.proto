@@ -1,12 +1,17 @@
 syntax = "proto3";
 package hex_play.user;
 
+import "google/protobuf/timestamp.proto";
+
 message User {
   int64 id = 1;
   string token = 2;
   string name = 3;
   string email = 4;
   int32 age = 5;
+  int64 version = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
 }
 
 message CreateUserRequest {

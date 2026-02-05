@@ -16,9 +16,11 @@ hex-play-core.workspace = true
 
 async-trait.workspace = true
 axum.workspace = true
+chrono.workspace = true
 hyper.workspace = true
 hyper-util.workspace = true
 prost.workspace = true
+prost-types.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

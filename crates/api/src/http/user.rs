@@ -6,6 +6,7 @@ use axum::{
     http::StatusCode,
     routing::{get, post},
 };
+use chrono::{DateTime, Utc};
 use hex_play_core::{
     models::{Age, Email, NewUser, PartialUserUpdate, User},
     services::CoreServices,
@@ -52,6 +53,9 @@ struct UserResponse {
     name: String,
     email: Email,
     age: Age,
+    version: i64,
+    created_at: DateTime<Utc>,
+    updated_at: DateTime<Utc>,
 }
 
 impl From<User> for UserResponse {
@@ -62,6 +66,9 @@ impl From<User> for UserResponse {
             name: user.name,
             email: user.email,
             age: user.age,
+            version: user.version,
+            created_at: user.created_at,
+            updated_at: user.updated_at,
         }
     }
 }
@@ -212,6 +219,9 @@ mod tests {
         assert!(body.contains(r#""name":"John Doe""#));
         assert!(body.contains(r#""email":"john@example.com""#));
         assert!(body.contains(r#""age":30"#));
+        assert!(body.contains(r#""version":0"#));
+        assert!(body.contains(r#""created_at":"#));
+        assert!(body.contains(r#""updated_at":"#));
     }
 
     #[tokio::test]
@@ -408,6 +418,9 @@ mod tests {
         assert!(body.contains(r#""id":1"#));
         assert!(body.contains(r#""name":"John Doe""#));
         assert!(body.contains(r#""age":30"#));
+        assert!(body.contains(r#""version":0"#));
+        assert!(body.contains(r#""created_at":"#));
+        assert!(body.contains(r#""updated_at":"#));
     }
 
     #[tokio::test]

@@ -81,6 +81,15 @@ pub(crate) mod handler {
             name: user.name,
             email: user.email.to_string(),
             age: user.age.value() as i32,
+            version: user.version,
+            created_at: Some(prost_types::Timestamp {
+                seconds: user.created_at.timestamp(),
+                nanos: user.created_at.timestamp_subsec_nanos() as i32,
+            }),
+            updated_at: Some(prost_types::Timestamp {
+                seconds: user.updated_at.timestamp(),
+                nanos: user.updated_at.timestamp_subsec_nanos() as i32,
+            }),
         }
     }
 
@@ -191,6 +200,9 @@ mod tests {
         assert_eq!(result.name, "John Doe");
         assert_eq!(result.email, "john@example.com");
         assert_eq!(result.age, 30);
+        assert_eq!(result.version, 0);
+        assert!(result.created_at.is_some());
+        assert!(result.updated_at.is_some());
     }
 
     #[tokio::test]
@@ -696,6 +708,7 @@ mod tests {
 
 /// Client-side API (returns core domain types)
 pub mod api {
+    use chrono::DateTime;
     use hex_play_core::{
         Error,
         models::{Age, Email, User},
@@ -711,13 +724,23 @@ pub mod api {
     };
 
     fn from_proto(proto: ProtoUser) -> Result<User, Error> {
+        let created_at = proto
+            .created_at
+            .and_then(|ts| DateTime::from_timestamp(ts.seconds, ts.nanos as u32))
+            .unwrap_or_default();
+        let updated_at = proto
+            .updated_at
+            .and_then(|ts| DateTime::from_timestamp(ts.seconds, ts.nanos as u32))
+            .unwrap_or_default();
         Ok(User {
             id: proto.id,
+            version: proto.version,
             token: proto.token.parse::<Uuid>().map_err(|e| Error::InvalidUuid(e.to_string()))?,
             name: proto.name,
             email: Email::new(proto.email)?,
             age: Age::new(proto.age as i16)?,
-            ..Default::default()
+            created_at,
+            updated_at,
         })
     }
 
