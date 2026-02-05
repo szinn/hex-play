@@ -36,7 +36,7 @@ tower = "0.5.3"
 tracing-log = "0.2.0"
 
 [workspace.dependencies.clap]
-version = "4.5.56"
+version = "4.5.57"
 features = ["cargo", "derive", "env"]
 
 [workspace.dependencies.hyper]
@@ -44,11 +44,11 @@ version = "1.8.1"
 features = ["full"]
 
 [workspace.dependencies.hyper-util]
-version = "0.1.19"
+version = "0.1.20"
 features = ["tokio", "server-auto", "http1"]
 
 [workspace.dependencies.insta]
-version = "1.46.2"
+version = "1.46.3"
 features = ["filters"]
 
 [workspace.dependencies.sea-orm]
