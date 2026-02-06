@@ -39,10 +39,10 @@ impl Default for User {
 }
 
 impl User {
-    /// Creates a test user with default timestamps and a generated token.
+    /// Creates a fake user with default timestamps and a generated token.
     /// Only available in test builds.
     #[cfg(any(test, feature = "test-support"))]
-    pub fn test(id: i64, name: impl Into<String>, email: impl Into<String>) -> Self {
+    pub fn fake(id: i64, name: impl Into<String>, email: impl Into<String>) -> Self {
         UserBuilder::default()
             .id(id)
             .version(0)
@@ -53,10 +53,10 @@ impl User {
             .expect("test user should build successfully")
     }
 
-    /// Creates a test user with a specific age, default timestamps and a
+    /// Creates a fake user with a specific age, default timestamps and a
     /// generated token. Only available in test builds.
     #[cfg(any(test, feature = "test-support"))]
-    pub fn test_with_age(id: i64, name: impl Into<String>, email: impl Into<String>, age: i16) -> Self {
+    pub fn fake_with_age(id: i64, name: impl Into<String>, email: impl Into<String>, age: i16) -> Self {
         UserBuilder::default()
             .id(id)
             .version(0)

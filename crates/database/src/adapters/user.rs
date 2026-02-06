@@ -381,7 +381,7 @@ mod tests {
         let svc = setup().await;
         let tx = svc.repository().begin().await.unwrap();
 
-        let user = User::test(999, "Nonexistent", "none@example.com");
+        let user = User::fake(999, "Nonexistent", "none@example.com");
 
         let result = svc.user_repository().update_user(&*tx, user).await;
 
@@ -415,7 +415,7 @@ mod tests {
         let svc = setup().await;
         let tx = svc.repository().begin().await.unwrap();
 
-        let user = User::test(-1, "Invalid", "invalid@example.com");
+        let user = User::fake(-1, "Invalid", "invalid@example.com");
 
         let result = svc.user_repository().update_user(&*tx, user).await;
 
@@ -450,7 +450,7 @@ mod tests {
         let svc = setup().await;
         let tx = svc.repository().begin().await.unwrap();
 
-        let user = User::test(999, "Nonexistent", "none@example.com");
+        let user = User::fake(999, "Nonexistent", "none@example.com");
 
         let result = svc.user_repository().delete_user(&*tx, user).await;
 

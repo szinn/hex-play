@@ -244,7 +244,7 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_add_user_success() {
-        let expected_user = User::test_with_age(1, "John Doe", "john@example.com", 30);
+        let expected_user = User::fake_with_age(1, "John Doe", "john@example.com", 30);
         let mock_user_repository = MockUserRepository::default().with_add_user_result(Ok(expected_user.clone()));
         let use_cases = create_use_cases(mock_user_repository);
 
@@ -279,11 +279,11 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_update_user_success() {
-        let updated_user = User::test_with_age(1, "John Updated", "john.updated@example.com", 35);
+        let updated_user = User::fake_with_age(1, "John Updated", "john.updated@example.com", 35);
         let mock_user_repository = MockUserRepository::default().with_update_user_result(Ok(updated_user.clone()));
         let use_cases = create_use_cases(mock_user_repository);
 
-        let user = User::test_with_age(1, "John Doe", "john@example.com", 35);
+        let user = User::fake_with_age(1, "John Doe", "john@example.com", 35);
 
         let result = use_cases.update_user(user).await;
 
@@ -299,7 +299,7 @@ mod tests {
         let mock_repository = MockUserRepository::default().with_update_user_result(Err(Error::RepositoryError(RepositoryError::NotFound)));
         let use_cases = create_use_cases(mock_repository);
 
-        let user = User::test(999, "Nonexistent", "none@example.com");
+        let user = User::fake(999, "Nonexistent", "none@example.com");
 
         let result = use_cases.update_user(user).await;
 
@@ -312,7 +312,7 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_find_by_id_found() {
-        let expected_user = User::test_with_age(1, "John Doe", "john@example.com", 30);
+        let expected_user = User::fake_with_age(1, "John Doe", "john@example.com", 30);
         let mock_user_repository = MockUserRepository::default().with_find_by_id_result(Ok(Some(expected_user.clone())));
         let use_cases = create_use_cases(mock_user_repository);
 
@@ -345,8 +345,8 @@ mod tests {
     async fn test_list_users_success() {
         // The database adapter's list_users fetches ages via JOIN, so the mock
         // should return users with ages already populated
-        let user1 = User::test_with_age(1, "John Doe", "john@example.com", 30);
-        let user2 = User::test_with_age(2, "Jane Doe", "jane@example.com", 25);
+        let user1 = User::fake_with_age(1, "John Doe", "john@example.com", 30);
+        let user2 = User::fake_with_age(2, "Jane Doe", "jane@example.com", 25);
         let users = vec![user1, user2];
         let mock_user_repository = MockUserRepository::default().with_list_users_result(Ok(users));
         let use_cases = create_use_cases(mock_user_repository);
@@ -378,7 +378,7 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_delete_user_success() {
-        let user_to_delete = User::test_with_age(1, "John Doe", "john@example.com", 30);
+        let user_to_delete = User::fake_with_age(1, "John Doe", "john@example.com", 30);
         let mock_user_repository = MockUserRepository::default()
             .with_find_by_id_result(Ok(Some(user_to_delete.clone())))
             .with_delete_user_result(Ok(user_to_delete.clone()));
@@ -409,7 +409,7 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_find_by_token_found() {
-        let expected_user = User::test_with_age(1, "John Doe", "john@example.com", 30);
+        let expected_user = User::fake_with_age(1, "John Doe", "john@example.com", 30);
         let mock_user_repository = MockUserRepository::default().with_find_by_token_result(Ok(Some(expected_user.clone())));
         let use_cases = create_use_cases(mock_user_repository);
 

@@ -196,7 +196,7 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_create_user_success() {
-        let user = User::test_with_age(1, "John Doe", "john@example.com", 30);
+        let user = User::fake_with_age(1, "John Doe", "john@example.com", 30);
         let mock = MockUserService::default().with_add_user_result(Ok(user));
         let app = create_test_app(mock);
 
@@ -226,7 +226,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_user_without_age_defaults_to_zero() {
-        let user = User::test(1, "John Doe", "john@example.com");
+        let user = User::fake(1, "John Doe", "john@example.com");
         let mock = MockUserService::default().with_add_user_result(Ok(user));
         let app = create_test_app(mock);
 
@@ -315,8 +315,8 @@ mod tests {
     #[tokio::test]
     async fn test_list_users_success() {
         let users = vec![
-            User::test_with_age(1, "John Doe", "john@example.com", 30),
-            User::test_with_age(2, "Jane Doe", "jane@example.com", 25),
+            User::fake_with_age(1, "John Doe", "john@example.com", 30),
+            User::fake_with_age(2, "Jane Doe", "jane@example.com", 25),
         ];
         let mock = MockUserService::default().with_list_users_result(Ok(users));
         let app = create_test_app(mock);
@@ -354,7 +354,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_list_users_with_pagination() {
-        let users = vec![User::test(5, "User Five", "five@example.com")];
+        let users = vec![User::fake(5, "User Five", "five@example.com")];
         let mock = MockUserService::default().with_list_users_result(Ok(users));
         let app = create_test_app(mock);
 
@@ -403,7 +403,7 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_get_user_success() {
-        let user = User::test_with_age(1, "John Doe", "john@example.com", 30);
+        let user = User::fake_with_age(1, "John Doe", "john@example.com", 30);
         let mock = MockUserService::default().with_find_by_id_result(Ok(Some(user)));
         let app = create_test_app(mock);
 
@@ -454,8 +454,8 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_update_user_success() {
-        let existing = User::test_with_age(1, "John Doe", "john@example.com", 30);
-        let updated = User::test_with_age(1, "John Updated", "john@example.com", 30);
+        let existing = User::fake_with_age(1, "John Doe", "john@example.com", 30);
+        let updated = User::fake_with_age(1, "John Updated", "john@example.com", 30);
         let mock = MockUserService::default()
             .with_find_by_id_result(Ok(Some(existing)))
             .with_update_user_result(Ok(updated));
@@ -482,8 +482,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_update_user_partial_email() {
-        let existing = User::test_with_age(1, "John Doe", "john@example.com", 25);
-        let updated = User::test_with_age(1, "John Doe", "john.new@example.com", 25);
+        let existing = User::fake_with_age(1, "John Doe", "john@example.com", 25);
+        let updated = User::fake_with_age(1, "John Doe", "john.new@example.com", 25);
         let mock = MockUserService::default()
             .with_find_by_id_result(Ok(Some(existing)))
             .with_update_user_result(Ok(updated));
@@ -510,8 +510,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_update_user_age() {
-        let existing = User::test_with_age(1, "John Doe", "john@example.com", 30);
-        let updated = User::test_with_age(1, "John Doe", "john@example.com", 31);
+        let existing = User::fake_with_age(1, "John Doe", "john@example.com", 30);
+        let updated = User::fake_with_age(1, "John Doe", "john@example.com", 31);
         let mock = MockUserService::default()
             .with_find_by_id_result(Ok(Some(existing)))
             .with_update_user_result(Ok(updated));
@@ -558,7 +558,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_update_user_conflict() {
-        let existing = User::test(1, "John Doe", "john@example.com");
+        let existing = User::fake(1, "John Doe", "john@example.com");
         let mock = MockUserService::default()
             .with_find_by_id_result(Ok(Some(existing)))
             .with_update_user_result(Err(Error::RepositoryError(RepositoryError::Conflict)));
@@ -584,7 +584,7 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_delete_user_success() {
-        let user = User::test_with_age(1, "John Doe", "john@example.com", 30);
+        let user = User::fake_with_age(1, "John Doe", "john@example.com", 30);
         let mock = MockUserService::default().with_delete_user_result(Ok(user));
         let app = create_test_app(mock);
 
@@ -619,7 +619,7 @@ mod tests {
     // ===================
     #[tokio::test]
     async fn test_get_user_by_token_success() {
-        let user = User::test_with_age(1, "John Doe", "john@example.com", 30);
+        let user = User::fake_with_age(1, "John Doe", "john@example.com", 30);
         let token = user.token;
         let mock = MockUserService::default().with_find_by_token_result(Ok(Some(user)));
         let app = create_test_app(mock);
