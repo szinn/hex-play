@@ -12,7 +12,6 @@ default:
 install-tools:
   mise install
   rustup toolchain add nightly
-  cargo install --locked cargo-insta cargo-nextest
 
 [doc('Format code and documentation')]
 fmt:

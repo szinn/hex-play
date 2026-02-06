@@ -68,3 +68,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Upgrade crate dependencies
 - Use find_with_related for list_users
 - Update crates
+- Don't need to turn bacon-ls logging off in env
