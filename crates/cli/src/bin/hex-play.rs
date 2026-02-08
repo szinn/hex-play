@@ -1,18 +1,36 @@
-use anyhow::{Context, Result};
-use hex_play::{
-    commands::{CommandLine, Commands, run_server_command},
-    config::Config,
-    logging::init_logging,
-};
+#[cfg(not(feature = "server"))]
+fn main() {
+    hex_play_frontend::launch_web_frontend();
+}
 
+// #[cfg(feature = "server")]
+// fn main() {
+//     use hex_play_frontend::launch_server_frontend;
+//
+//     launch_server_frontend();
+// }
+
+#[cfg(feature = "server")]
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> anyhow::Result<()> {
+    use anyhow::Context;
+    use hex_play::{
+        commands::{CommandLine, Commands, run_server_command},
+        config::Config,
+    };
+
+    std::thread::spawn(|| {
+        hex_play_frontend::launch_server_frontend();
+    });
+    // .join()
+    // .expect("Task panicked");
+
     let cli: CommandLine = clap::Parser::parse();
     let config = Config::load().context("Cannot load configuration")?;
 
     match cli.command {
         Commands::Server => {
-            init_logging()?;
+            // init_logging()?;
             run_server_command(&config).await.context("Couldn't start server")?
         }
         Commands::Status { question } => {

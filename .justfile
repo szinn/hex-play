@@ -12,6 +12,7 @@ default:
 install-tools:
   mise install
   rustup toolchain add nightly
+  rustup target add wasm32-unknown-unknown
 
 [doc('Format code and documentation')]
 fmt:
@@ -25,11 +26,11 @@ changelog:
 
 [doc('Build all applications')]
 build:
-  cargo build --bin hex-play
+  cargo build --bin hex-play --all-features
 
 [doc('Run Clippy on codebase for linting')]
 clippy:
-  cargo +nightly clippy --workspace --all-targets
+  cargo +nightly clippy --workspace --all-targets --all-features
 
 [doc('Update rust crate dependencies')]
 deps:
@@ -37,7 +38,7 @@ deps:
 
 [doc('Run all tests using nextest')]
 test:
-  cargo nextest run --workspace
+  cargo nextest run --workspace --all-features
 
 [doc('Run all tests using insta')]
 insta:

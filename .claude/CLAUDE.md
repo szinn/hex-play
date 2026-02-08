@@ -42,6 +42,10 @@ crates/
 Only `crates/cli` is a direct workspace member. The other crates are pulled in transitively
 as path dependencies.
 
+## Frontend
+
+The frontend is built using Dioxus. See @.claude/Dioxus.md for more info.
+
 ## Database
 
 The project uses PostgreSQL with SeaORM. A running Postgres instance is required for
@@ -85,8 +89,9 @@ Secrets should be encrypted with `sops` and never committed.
   - Individual crates reference them with `crate-name.workspace = true`
   - In root `Cargo.toml`: version-only deps use inline format (`anyhow = "1.0.100"`), but deps
     with features or other options use section format:
-    ```toml
-    [workspace.dependencies.uuid]
-    version = "1"
-    features = ["v4", "serde"]
-    ```
+
+        ```toml
+        [workspace.dependencies.uuid]
+        version = "1"
+        features = ["v4", "serde"]
+        ```

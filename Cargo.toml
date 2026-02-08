@@ -15,6 +15,7 @@ license = "MIT"
 hex-play-api = { path = "crates/api" }
 hex-play-core = { path = "crates/core" }
 hex-play-database = { path = "crates/database" }
+hex-play-frontend = { path = "crates/frontend" }
 
 anyhow = "1.0.101"
 async-trait = "0.1.89"
@@ -40,6 +41,10 @@ features = ["serde"]
 [workspace.dependencies.clap]
 version = "4.5.57"
 features = ["cargo", "derive", "env"]
+
+[workspace.dependencies.dioxus]
+version = "0.7.3"
+features = ["fullstack", "router"]
 
 [workspace.dependencies.hyper]
 version = "1.8.1"

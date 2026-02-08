@@ -1,0 +1,19 @@
+[package]
+name = "hex-play-frontend"
+description = "Frontend for experimentation"
+autotests = false
+
+version = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+[features]
+web = ["dioxus/web"]
+server = ["dioxus/server"]
+
+[dependencies]
+dioxus.workspace = true
+
+[dev-dependencies]
