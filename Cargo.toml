@@ -54,7 +54,7 @@ version = "1.46.3"
 features = ["filters"]
 
 [workspace.dependencies.sea-orm]
-version = "2.0.0-rc.30"
+version = "2.0.0-rc.31"
 features = [
     "debug-print",
     "postgres-array",
@@ -69,7 +69,7 @@ features = [
 ]
 
 [workspace.dependencies.sea-orm-migration]
-version = "2.0.0-rc.30"
+version = "2.0.0-rc.31"
 features = [
     "sqlx-postgres",
     "runtime-tokio-rustls",
