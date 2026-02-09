@@ -9,11 +9,15 @@ rust-version = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
 
-[features]
-web = ["dioxus/web"]
-server = ["dioxus/server"]
-
 [dependencies]
 dioxus.workspace = true
 
+hex-play-core = { workspace = true, optional = true }
+thiserror = { workspace = true, optional = true }
+tracing = { workspace = true, optional = true }
+
 [dev-dependencies]
+
+[features]
+web = ["dioxus/web"]
+server = ["dioxus/server", "dep:hex-play-core", "dep:thiserror", "dep:tracing"]

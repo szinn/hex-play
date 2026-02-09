@@ -2,6 +2,7 @@ use anyhow::Context;
 use hex_play_api::create_api_subsystem;
 use hex_play_core::create_services;
 use hex_play_database::create_repository_service;
+use hex_play_frontend::server::launch_server_frontend;
 use sea_orm::{ConnectOptions, Database};
 use tokio::time::Duration;
 use tokio_graceful_shutdown::{IntoSubsystem, SubsystemBuilder, SubsystemHandle, Toplevel};
@@ -27,6 +28,8 @@ pub async fn run_server_command(config: &Config) -> anyhow::Result<()> {
     let server = {
         let services = create_services(repository_service.clone()).context("Couldn't create core services")?;
         let api_subsystem = create_api_subsystem(services.clone());
+
+        launch_server_frontend(services.clone());
 
         Toplevel::new(async |s: &mut SubsystemHandle| {
             s.start(SubsystemBuilder::new("Api", api_subsystem.into_subsystem()));

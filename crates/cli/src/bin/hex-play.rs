@@ -1,6 +1,6 @@
 #[cfg(not(feature = "server"))]
 fn main() {
-    hex_play_frontend::launch_web_frontend();
+    hex_play_frontend::web::launch_web_frontend();
 }
 
 #[cfg(feature = "server")]
@@ -19,11 +19,6 @@ async fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Server => {
             init_logging()?;
-
-            std::thread::spawn(|| {
-                hex_play_frontend::launch_server_frontend();
-            });
-
             run_server_command(&config).await.context("Couldn't start server")?
         }
         Commands::Status { question } => {

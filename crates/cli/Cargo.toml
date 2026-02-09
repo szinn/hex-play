@@ -19,7 +19,8 @@ name = "hex-play"
 path = "src/bin/hex-play.rs"
 
 [features]
-cli = [
+server = [
+    "dioxus/server",
     "dep:hex-play-api",
     "dep:hex-play-core",
     "dep:hex-play-database",
@@ -37,9 +38,9 @@ cli = [
     "dep:tracing",
     "dep:tracing-log",
     "dep:tracing-subscriber",
+    "hex-play-frontend?/server",
 ]
 web = ["dioxus/web", "dep:hex-play-frontend", "hex-play-frontend?/web"]
-server = ["dioxus/server", "cli", "hex-play-frontend?/server"]
 
 [dependencies]
 hex-play-api = { workspace = true, optional = true }

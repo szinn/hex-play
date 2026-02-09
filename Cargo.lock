@@ -2233,6 +2233,9 @@ name = "hex-play-frontend"
 version = "0.1.0"
 dependencies = [
  "dioxus",
+ "hex-play-core",
+ "thiserror 2.0.18",
+ "tracing",
 ]
 
 [[package]]

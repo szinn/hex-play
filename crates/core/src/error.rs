@@ -33,6 +33,9 @@ pub enum Error {
     #[error("Infrastructure error: {0}")]
     Infrastructure(String),
 
+    #[error("Frontend error: {0}")]
+    FrontendError(String),
+
     #[error(transparent)]
     RepositoryError(#[from] RepositoryError),
 
@@ -49,6 +52,7 @@ impl Error {
             Error::Validation(_) => ErrorKind::InvalidInput,
             Error::InvalidTransactionType | Error::Infrastructure(_) => ErrorKind::Internal,
             Error::RepositoryError(e) => e.kind(),
+            Error::FrontendError(_) => ErrorKind::Internal,
             #[cfg(any(test, feature = "test-support"))]
             Error::MockNotConfigured(_) => ErrorKind::Internal,
         }
