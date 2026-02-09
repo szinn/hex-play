@@ -3,13 +3,6 @@ fn main() {
     hex_play_frontend::launch_web_frontend();
 }
 
-// #[cfg(feature = "server")]
-// fn main() {
-//     use hex_play_frontend::launch_server_frontend;
-//
-//     launch_server_frontend();
-// }
-
 #[cfg(feature = "server")]
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -17,20 +10,20 @@ async fn main() -> anyhow::Result<()> {
     use hex_play::{
         commands::{CommandLine, Commands, run_server_command},
         config::Config,
+        logging::init_logging,
     };
-
-    std::thread::spawn(|| {
-        hex_play_frontend::launch_server_frontend();
-    });
-    // .join()
-    // .expect("Task panicked");
 
     let cli: CommandLine = clap::Parser::parse();
     let config = Config::load().context("Cannot load configuration")?;
 
     match cli.command {
         Commands::Server => {
-            // init_logging()?;
+            init_logging()?;
+
+            std::thread::spawn(|| {
+                hex_play_frontend::launch_server_frontend();
+            });
+
             run_server_command(&config).await.context("Couldn't start server")?
         }
         Commands::Status { question } => {
