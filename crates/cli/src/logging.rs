@@ -12,11 +12,14 @@ pub fn init_logging() -> Result<()> {
         .add_directive("sqlx::postgres::notice=off".parse()?)
         .add_directive("sqlx::query=off".parse()?)
         .add_directive("sea_orm=off".parse()?)
+        .add_directive("dioxus_core=off".parse()?)
+        .add_directive("dioxus_signals=off".parse()?)
         .add_directive("hyper::proto=off".parse()?)
         .add_directive("hyper::client=off".parse()?)
         .add_directive("h2=off".parse()?)
         .add_directive("rustls=off".parse()?)
         .add_directive("tokio_util=off".parse()?)
+        .add_directive("tower_http=off".parse()?)
         .add_directive("reqwest=off".parse()?)
         .add_directive("simple_crypt=off".parse()?);
 

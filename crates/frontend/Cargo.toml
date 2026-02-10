@@ -12,12 +12,27 @@ repository = { workspace = true }
 [dependencies]
 dioxus.workspace = true
 
+axum = { workspace = true, optional = true }
+chrono = { workspace = true }
 hex-play-core = { workspace = true, optional = true }
+serde = { workspace = true }
 thiserror = { workspace = true, optional = true }
+tower = { workspace = true, optional = true }
+tower-http = { workspace = true, optional = true }
 tracing = { workspace = true, optional = true }
+uuid = { workspace = true, optional = true }
 
 [dev-dependencies]
 
 [features]
 web = ["dioxus/web"]
-server = ["dioxus/server", "dep:hex-play-core", "dep:thiserror", "dep:tracing"]
+server = [
+    "dep:axum",
+    "dep:hex-play-core",
+    "dep:thiserror",
+    "dep:tower",
+    "dep:tower-http",
+    "dep:tracing",
+    "dep:uuid",
+    "dioxus/server",
+]

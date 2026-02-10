@@ -2232,10 +2232,16 @@ dependencies = [
 name = "hex-play-frontend"
 version = "0.1.0"
 dependencies = [
+ "axum",
+ "chrono",
  "dioxus",
  "hex-play-core",
+ "serde",
  "thiserror 2.0.18",
+ "tower",
+ "tower-http",
  "tracing",
+ "uuid",
 ]
 
 [[package]]
