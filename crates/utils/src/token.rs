@@ -1,5 +1,6 @@
 use std::{fmt, hash::Hash, marker::PhantomData, str::FromStr};
 
+use rand::Rng as _;
 use serde::{Deserialize, Serialize, de};
 use thiserror::Error;
 
@@ -22,10 +23,17 @@ pub trait TokenId: Copy + PartialEq + Eq + Hash + fmt::Debug {
 
     /// Decode a base-32 string back into this numeric type.
     fn decode(s: &str) -> Result<Self, TokenError>;
+
+    /// Generate a random value.
+    fn random() -> Self;
 }
 
 impl TokenId for u64 {
     const ENCODED_LEN: usize = 13; // 32^13 > u64::MAX
+
+    fn random() -> Self {
+        rand::rng().random()
+    }
 
     fn encode(self) -> String {
         let mut buf = [b'A'; 13];
@@ -50,6 +58,10 @@ impl TokenId for u64 {
 
 impl TokenId for u128 {
     const ENCODED_LEN: usize = 26; // 32^26 > u128::MAX
+
+    fn random() -> Self {
+        rand::rng().random()
+    }
 
     fn encode(self) -> String {
         let mut buf = [b'A'; 26];
@@ -108,6 +120,11 @@ impl<P: TokenPrefix, I: TokenId> Token<P, I> {
     /// Create a token from a numeric ID.
     pub fn new(id: I) -> Self {
         Self { id, _marker: PhantomData }
+    }
+
+    /// Generate a new token with a random ID.
+    pub fn generate() -> Self {
+        Self::new(I::random())
     }
 
     /// Parse a token from its string representation (e.g. `"U_ABCD1234NRST0"`).
