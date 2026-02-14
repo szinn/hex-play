@@ -6,25 +6,83 @@ use thiserror::Error;
 /// Base-32 alphabet excluding visually ambiguous characters (I, L, O, Q).
 const ALPHABET: &[u8; 32] = b"ABCDEFGHJKMNPRSTUVWXYZ0123456789";
 
-/// Length of the encoded identifier portion of a token.
-const ENCODED_LEN: usize = 13;
-
 /// Trait that defines the prefix for a token kind.
 pub trait TokenPrefix: fmt::Debug + Clone + PartialEq + Eq {
     const PREFIX: &'static str;
 }
 
+/// Trait that abstracts encode/decode over the numeric backing type.
+pub trait TokenId: Copy + PartialEq + Eq + Hash + fmt::Debug {
+    /// Length of the encoded identifier portion (excluding the prefix).
+    const ENCODED_LEN: usize;
+
+    /// Encode this value into a base-32 string of [`Self::ENCODED_LEN`]
+    /// characters.
+    fn encode(self) -> String;
+
+    /// Decode a base-32 string back into this numeric type.
+    fn decode(s: &str) -> Result<Self, TokenError>;
+}
+
+impl TokenId for u64 {
+    const ENCODED_LEN: usize = 13; // 32^13 > u64::MAX
+
+    fn encode(self) -> String {
+        let mut buf = [b'A'; 13];
+        let mut remaining = self;
+        for i in (0..13).rev() {
+            buf[i] = ALPHABET[(remaining & 0x1F) as usize];
+            remaining >>= 5;
+        }
+        // SAFETY: all bytes come from ALPHABET which is ASCII
+        String::from_utf8(buf.to_vec()).expect("alphabet is ASCII")
+    }
+
+    fn decode(s: &str) -> Result<Self, TokenError> {
+        let mut value: u64 = 0;
+        for ch in s.chars() {
+            let idx = ALPHABET.iter().position(|&c| c == ch as u8).ok_or(TokenError::InvalidCharacter(ch))?;
+            value = value.checked_shl(5).and_then(|v| v.checked_add(idx as u64)).ok_or(TokenError::Overflow)?;
+        }
+        Ok(value)
+    }
+}
+
+impl TokenId for u128 {
+    const ENCODED_LEN: usize = 26; // 32^26 > u128::MAX
+
+    fn encode(self) -> String {
+        let mut buf = [b'A'; 26];
+        let mut remaining = self;
+        for i in (0..26).rev() {
+            buf[i] = ALPHABET[(remaining & 0x1F) as usize];
+            remaining >>= 5;
+        }
+        // SAFETY: all bytes come from ALPHABET which is ASCII
+        String::from_utf8(buf.to_vec()).expect("alphabet is ASCII")
+    }
+
+    fn decode(s: &str) -> Result<Self, TokenError> {
+        let mut value: u128 = 0;
+        for ch in s.chars() {
+            let idx = ALPHABET.iter().position(|&c| c == ch as u8).ok_or(TokenError::InvalidCharacter(ch))?;
+            value = value.checked_shl(5).and_then(|v| v.checked_add(idx as u128)).ok_or(TokenError::Overflow)?;
+        }
+        Ok(value)
+    }
+}
+
 /// A typed, prefixed identifier for domain entities.
 ///
-/// Stores only a `u64` internally. The string representation (e.g.
+/// Stores only the numeric ID internally. The string representation (e.g.
 /// `U_ABCD1234NRST0`) is computed on demand via [`Display`].
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Token<P: TokenPrefix> {
-    id: u64,
+pub struct Token<P: TokenPrefix, I: TokenId = u64> {
+    id: I,
     _marker: PhantomData<P>,
 }
 
-impl<P: TokenPrefix> fmt::Debug for Token<P> {
+impl<P: TokenPrefix, I: TokenId> fmt::Debug for Token<P, I> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Token({self})")
     }
@@ -42,35 +100,13 @@ pub enum TokenError {
     #[error("invalid character: '{0}'")]
     InvalidCharacter(char),
 
-    #[error("encoded value overflows u64")]
+    #[error("encoded value overflow")]
     Overflow,
 }
 
-/// Encode a `u64` into a 13-character base-32 string using [`ALPHABET`].
-fn encode(value: u64) -> String {
-    let mut buf = [b'A'; ENCODED_LEN];
-    let mut remaining = value;
-    for i in (0..ENCODED_LEN).rev() {
-        buf[i] = ALPHABET[(remaining & 0x1F) as usize];
-        remaining >>= 5;
-    }
-    // SAFETY: all bytes come from ALPHABET which is ASCII
-    String::from_utf8(buf.to_vec()).expect("alphabet is ASCII")
-}
-
-/// Decode a 13-character base-32 string back to a `u64`.
-fn decode(s: &str) -> Result<u64, TokenError> {
-    let mut value: u64 = 0;
-    for ch in s.chars() {
-        let idx = ALPHABET.iter().position(|&c| c == ch as u8).ok_or(TokenError::InvalidCharacter(ch))?;
-        value = value.checked_shl(5).and_then(|v| v.checked_add(idx as u64)).ok_or(TokenError::Overflow)?;
-    }
-    Ok(value)
-}
-
-impl<P: TokenPrefix> Token<P> {
+impl<P: TokenPrefix, I: TokenId> Token<P, I> {
     /// Create a token from a numeric ID.
-    pub fn new(id: u64) -> Self {
+    pub fn new(id: I) -> Self {
         Self { id, _marker: PhantomData }
     }
 
@@ -86,19 +122,19 @@ impl<P: TokenPrefix> Token<P> {
         }
 
         let encoded = &s[prefix.len()..];
-        if encoded.len() != ENCODED_LEN {
+        if encoded.len() != I::ENCODED_LEN {
             return Err(TokenError::InvalidLength {
-                expected: prefix.len() + ENCODED_LEN,
+                expected: prefix.len() + I::ENCODED_LEN,
                 found: s.len(),
             });
         }
 
-        let id = decode(encoded)?;
+        let id = I::decode(encoded)?;
         Ok(Self::new(id))
     }
 
     /// Get the underlying numeric ID.
-    pub fn id(&self) -> u64 {
+    pub fn id(&self) -> I {
         self.id
     }
 
@@ -108,13 +144,13 @@ impl<P: TokenPrefix> Token<P> {
     }
 }
 
-impl<P: TokenPrefix> fmt::Display for Token<P> {
+impl<P: TokenPrefix, I: TokenId> fmt::Display for Token<P, I> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}{}", P::PREFIX, encode(self.id))
+        write!(f, "{}{}", P::PREFIX, self.id.encode())
     }
 }
 
-impl<P: TokenPrefix> FromStr for Token<P> {
+impl<P: TokenPrefix, I: TokenId> FromStr for Token<P, I> {
     type Err = TokenError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -122,13 +158,13 @@ impl<P: TokenPrefix> FromStr for Token<P> {
     }
 }
 
-impl<P: TokenPrefix> Serialize for Token<P> {
+impl<P: TokenPrefix, I: TokenId> Serialize for Token<P, I> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.serialize_str(&self.to_string())
     }
 }
 
-impl<'de, P: TokenPrefix> Deserialize<'de> for Token<P> {
+impl<'de, P: TokenPrefix, I: TokenId> Deserialize<'de> for Token<P, I> {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let s = String::deserialize(deserializer)?;
         Self::parse(&s).map_err(de::Error::custom)
@@ -143,7 +179,10 @@ impl<'de, P: TokenPrefix> Deserialize<'de> for Token<P> {
 /// use hex_play_utils::{define_token_prefix, token::Token};
 ///
 /// define_token_prefix!(UserPrefix, "U_");
-/// type UserToken = Token<UserPrefix>;
+/// type UserToken = Token<UserPrefix>;          // u64 (default)
+///
+/// define_token_prefix!(SessionPrefix, "S_");
+/// type SessionToken = Token<SessionPrefix, u128>; // u128
 /// ```
 #[macro_export]
 macro_rules! define_token_prefix {
@@ -166,6 +205,8 @@ mod tests {
 
     define_token_prefix!(UserPrefix, "U_");
     type UserToken = Token<UserPrefix>;
+
+    // --- u64 tests (unchanged, use default type parameter) ---
 
     #[test]
     fn round_trip() {
@@ -287,5 +328,64 @@ mod tests {
         let token = TestToken::new(0);
         let debug = format!("{token:?}");
         assert_eq!(debug, "Token(T_AAAAAAAAAAAAA)");
+    }
+
+    // --- u128 tests ---
+
+    define_token_prefix!(BigPrefix, "B_");
+    type BigToken = Token<BigPrefix, u128>;
+
+    #[test]
+    fn u128_round_trip() {
+        for id in [0u128, 1, u64::MAX as u128, u128::MAX] {
+            let token = BigToken::new(id);
+            let s = token.to_string();
+            let parsed = BigToken::parse(&s).unwrap();
+            assert_eq!(parsed.id(), id);
+        }
+    }
+
+    #[test]
+    fn u128_zero_encodes_to_26_as() {
+        let token = BigToken::new(0);
+        assert_eq!(token.to_string(), "B_AAAAAAAAAAAAAAAAAAAAAAAAAA");
+    }
+
+    #[test]
+    fn u128_max_round_trips() {
+        let token = BigToken::new(u128::MAX);
+        let s = token.to_string();
+        let parsed = BigToken::parse(&s).unwrap();
+        assert_eq!(parsed.id(), u128::MAX);
+    }
+
+    #[test]
+    fn u128_known_value_encoding() {
+        let token = BigToken::new(1);
+        let s = token.to_string();
+        // 25 A's + B
+        assert_eq!(s, "B_AAAAAAAAAAAAAAAAAAAAAAAAAB");
+    }
+
+    #[test]
+    fn u128_wrong_length_error() {
+        // prefix (2) + encoded (26) = 28
+        let err = BigToken::parse("B_AAAA").unwrap_err();
+        assert_eq!(err, TokenError::InvalidLength { expected: 28, found: 6 });
+    }
+
+    #[test]
+    fn u128_serde_round_trip() {
+        let token = BigToken::new(123_456);
+        let json = serde_json::to_string(&token).unwrap();
+        let parsed: BigToken = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.id(), 123_456);
+    }
+
+    #[test]
+    fn u128_debug_format() {
+        let token = BigToken::new(0);
+        let debug = format!("{token:?}");
+        assert_eq!(debug, "Token(B_AAAAAAAAAAAAAAAAAAAAAAAAAA)");
     }
 }
