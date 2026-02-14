@@ -115,7 +115,7 @@ version = "0.3.22"
 features = ["std", "fmt", "registry", "env-filter", "json"]
 
 [workspace.dependencies.uuid]
-version = "1.20.0"
+version = "1.21.0"
 features = ["v4", "serde"]
 
 [workspace.lints.rust]
