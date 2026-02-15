@@ -7,6 +7,18 @@ use thiserror::Error;
 /// Base-32 alphabet excluding visually ambiguous characters (I, L, O, Q).
 const ALPHABET: &[u8; 32] = b"ABCDEFGHJKMNPRSTUVWXYZ0123456789";
 
+/// Reverse lookup table: ASCII byte → alphabet index (or `0xFF` for invalid).
+/// Covers the full range `0..=b'Z'` (91 entries).
+const DECODE_TABLE: [u8; 91] = {
+    let mut table = [0xFF_u8; 91];
+    let mut i = 0;
+    while i < ALPHABET.len() {
+        table[ALPHABET[i] as usize] = i as u8;
+        i += 1;
+    }
+    table
+};
+
 /// Trait that defines the prefix for a token kind.
 pub trait TokenPrefix: fmt::Debug + Clone + PartialEq + Eq {
     const PREFIX: &'static str;
@@ -36,9 +48,9 @@ impl TokenId for u64 {
     }
 
     fn encode(self) -> String {
-        let mut buf = [b'A'; 13];
+        let mut buf = [b'A'; Self::ENCODED_LEN];
         let mut remaining = self;
-        for i in (0..13).rev() {
+        for i in (0..Self::ENCODED_LEN).rev() {
             buf[i] = ALPHABET[(remaining & 0x1F) as usize];
             remaining >>= 5;
         }
@@ -49,7 +61,11 @@ impl TokenId for u64 {
     fn decode(s: &str) -> Result<Self, TokenError> {
         let mut value: u64 = 0;
         for ch in s.chars() {
-            let idx = ALPHABET.iter().position(|&c| c == ch as u8).ok_or(TokenError::InvalidCharacter(ch))?;
+            let byte = ch as usize;
+            let idx = if byte < DECODE_TABLE.len() { DECODE_TABLE[byte] } else { 0xFF };
+            if idx == 0xFF {
+                return Err(TokenError::InvalidCharacter(ch));
+            }
             value = value.checked_shl(5).and_then(|v| v.checked_add(idx as u64)).ok_or(TokenError::Overflow)?;
         }
         Ok(value)
@@ -64,9 +80,9 @@ impl TokenId for u128 {
     }
 
     fn encode(self) -> String {
-        let mut buf = [b'A'; 26];
+        let mut buf = [b'A'; Self::ENCODED_LEN];
         let mut remaining = self;
-        for i in (0..26).rev() {
+        for i in (0..Self::ENCODED_LEN).rev() {
             buf[i] = ALPHABET[(remaining & 0x1F) as usize];
             remaining >>= 5;
         }
@@ -77,7 +93,11 @@ impl TokenId for u128 {
     fn decode(s: &str) -> Result<Self, TokenError> {
         let mut value: u128 = 0;
         for ch in s.chars() {
-            let idx = ALPHABET.iter().position(|&c| c == ch as u8).ok_or(TokenError::InvalidCharacter(ch))?;
+            let byte = ch as usize;
+            let idx = if byte < DECODE_TABLE.len() { DECODE_TABLE[byte] } else { 0xFF };
+            if idx == 0xFF {
+                return Err(TokenError::InvalidCharacter(ch));
+            }
             value = value.checked_shl(5).and_then(|v| v.checked_add(idx as u128)).ok_or(TokenError::Overflow)?;
         }
         Ok(value)

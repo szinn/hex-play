@@ -1,5 +1,12 @@
 {
   "permissions": {
-    "allow": ["Bash(just *)", "Bash(jj describe:*)", "Bash(jj desc:*)", "Bash(jj log:*)", "Bash(jj show:*)"]
+    "allow": [
+      "Bash(just *)",
+      "Bash(jj describe:*)",
+      "Bash(jj desc:*)",
+      "Bash(jj log:*)",
+      "Bash(jj show:*)",
+      "Bash(cargo test:*)"
+    ]
   }
 }
