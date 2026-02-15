@@ -65,10 +65,9 @@ impl UserService for GrpcUserService {
 pub(crate) mod handler {
     use hex_play_core::{
         Error, RepositoryError,
-        models::{Age, Email, NewUser, PartialUserUpdate},
+        models::{Age, Email, NewUser, PartialUserUpdate, user::UserToken},
         services::CoreServices,
     };
-    use uuid::Uuid;
 
     use crate::grpc::user_proto::{
         CreateUserRequest, DeleteUserRequest, GetUserByTokenRequest, GetUserRequest, ListUsersRequest, ListUsersResponse, UpdateUserRequest, User as ProtoUser,
@@ -113,7 +112,7 @@ pub(crate) mod handler {
     }
 
     pub(crate) async fn get_by_token(core_services: &CoreServices, request: GetUserByTokenRequest) -> Result<ProtoUser, Error> {
-        let token = request.token.parse::<Uuid>().map_err(|e| Error::InvalidUuid(e.to_string()))?;
+        let token = UserToken::parse(&request.token).map_err(|e| Error::InvalidToken(e.to_string()))?;
         let user = core_services
             .user_service
             .find_by_token(token)
@@ -161,11 +160,10 @@ pub(crate) mod handler {
 mod tests {
     use hex_play_core::{
         Error, RepositoryError,
-        models::User,
+        models::{User, user::UserToken},
         test_support::{MockUserService, create_arc_core_services_with_mock, create_core_services_with_mock},
     };
     use tonic::{Code, Request};
-    use uuid::Uuid;
 
     use super::{GrpcUserService, handler};
     use crate::grpc::user_proto::{
@@ -273,10 +271,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_handler_get_invalid_id() {
-        let mock = MockUserService::default().with_find_by_id_result(Err(Error::InvalidId(-1)));
+        let mock = MockUserService::default().with_find_by_id_result(Err(Error::InvalidId(0)));
         let core_services = create_core_services_with_mock(mock);
 
-        let request = GetUserRequest { id: -1 };
+        let request = GetUserRequest { id: 0 };
 
         let result = handler::get(&core_services, request).await;
 
@@ -306,7 +304,7 @@ mod tests {
         let mock = MockUserService::default().with_find_by_token_result(Ok(None));
         let core_services = create_core_services_with_mock(mock);
 
-        let token = Uuid::new_v4();
+        let token = UserToken::generate();
         let request = GetUserByTokenRequest { token: token.to_string() };
 
         let result = handler::get_by_token(&core_services, request).await;
@@ -517,11 +515,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_handler_list_invalid_start_id() {
-        let mock = MockUserService::default().with_list_users_result(Err(Error::InvalidId(-1)));
+        let mock = MockUserService::default().with_list_users_result(Err(Error::InvalidId(0)));
         let core_services = create_core_services_with_mock(mock);
 
         let request = ListUsersRequest {
-            start_id: Some(-1),
+            start_id: Some(0),
             page_size: None,
         };
 
@@ -711,9 +709,11 @@ pub mod api {
     use chrono::DateTime;
     use hex_play_core::{
         Error,
-        models::{Age, Email, User},
+        models::{
+            Age, Email, User,
+            user::{UserId, UserToken},
+        },
     };
-    use uuid::Uuid;
 
     use crate::{
         ApiError,
@@ -735,7 +735,7 @@ pub mod api {
         Ok(User {
             id: proto.id,
             version: proto.version,
-            token: proto.token.parse::<Uuid>().map_err(|e| Error::InvalidUuid(e.to_string()))?,
+            token: UserToken::parse(&proto.token).map_err(|e| Error::InvalidToken(e.to_string()))?,
             name: proto.name,
             email: Email::new(proto.email)?,
             age: Age::new(proto.age as i16)?,
@@ -759,7 +759,7 @@ pub mod api {
     }
 
     #[tracing::instrument(level = "trace")]
-    pub async fn get(id: i64) -> Result<User, Error> {
+    pub async fn get(id: UserId) -> Result<User, Error> {
         let mut client = UserServiceClient::connect("http://localhost:3001")
             .await
             .map_err(|e| Error::from(ApiError::GrpcClient(e.to_string())))?;
@@ -773,7 +773,7 @@ pub mod api {
     }
 
     #[tracing::instrument(level = "trace")]
-    pub async fn get_by_token(token: Uuid) -> Result<User, Error> {
+    pub async fn get_by_token(token: UserToken) -> Result<User, Error> {
         let mut client = UserServiceClient::connect("http://localhost:3001")
             .await
             .map_err(|e| Error::from(ApiError::GrpcClient(e.to_string())))?;
@@ -787,7 +787,7 @@ pub mod api {
     }
 
     #[tracing::instrument(level = "trace")]
-    pub async fn update(id: i64, name: Option<String>, email: Option<String>, age: Option<i16>) -> Result<User, Error> {
+    pub async fn update(id: UserId, name: Option<String>, email: Option<String>, age: Option<i16>) -> Result<User, Error> {
         let mut client = UserServiceClient::connect("http://localhost:3001")
             .await
             .map_err(|e| Error::from(ApiError::GrpcClient(e.to_string())))?;
@@ -806,7 +806,7 @@ pub mod api {
     }
 
     #[tracing::instrument(level = "trace")]
-    pub async fn delete(id: i64) -> Result<User, Error> {
+    pub async fn delete(id: UserId) -> Result<User, Error> {
         let mut client = UserServiceClient::connect("http://localhost:3001")
             .await
             .map_err(|e| Error::from(ApiError::GrpcClient(e.to_string())))?;
@@ -820,7 +820,7 @@ pub mod api {
     }
 
     #[tracing::instrument(level = "trace")]
-    pub async fn list(start_id: Option<i64>, page_size: Option<u64>) -> Result<Vec<User>, Error> {
+    pub async fn list(start_id: Option<UserId>, page_size: Option<u64>) -> Result<Vec<User>, Error> {
         let mut client = UserServiceClient::connect("http://localhost:3001")
             .await
             .map_err(|e| Error::from(ApiError::GrpcClient(e.to_string())))?;

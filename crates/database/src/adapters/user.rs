@@ -1,10 +1,13 @@
 use chrono::Utc;
 use hex_play_core::{
     Error, RepositoryError,
-    models::{Age, Email, NewUser, User},
+    models::{
+        Age, Email, NewUser, User,
+        user::{UserId, UserToken},
+    },
     repositories::{Transaction, UserRepository},
 };
-use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, ModelTrait, QueryFilter, QueryOrder, QuerySelect, prelude::Uuid};
+use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, ModelTrait, QueryFilter, QueryOrder, QuerySelect};
 
 use crate::{
     entities::{prelude, users},
@@ -14,10 +17,11 @@ use crate::{
 
 impl From<users::Model> for User {
     fn from(model: users::Model) -> Self {
+        let token = UserToken::parse(&model.token).unwrap();
         Self {
-            id: model.id,
-            version: model.version,
-            token: model.token,
+            id: model.id as u64,
+            version: model.version as u64,
+            token,
             name: model.name,
             email: Email::new(model.email).expect("database email should be valid"),
             age: Age::new(model.age).expect("database age should be valid"),
@@ -45,7 +49,7 @@ impl UserRepository for UserRepositoryAdapter {
             name: Set(user.name),
             email: Set(user.email.into_inner()),
             age: Set(user.age.value()),
-            version: Set(0),
+            version: Set(0i64),
             ..Default::default()
         };
 
@@ -56,18 +60,17 @@ impl UserRepository for UserRepositoryAdapter {
 
     #[tracing::instrument(level = "trace", skip(self, transaction))]
     async fn update_user(&self, transaction: &dyn Transaction, user: User) -> Result<User, Error> {
-        if user.id < 0 {
+        if user.id == 0 {
             return Err(Error::InvalidId(user.id));
         }
-
         let transaction = TransactionImpl::get_db_transaction(transaction)?;
 
-        let existing = prelude::Users::find_by_id(user.id)
+        let existing = prelude::Users::find_by_id(user.id as i64)
             .one(transaction)
             .await
             .map_err(handle_dberr)?
             .ok_or(Error::RepositoryError(RepositoryError::NotFound))?;
-        if existing.version != user.version {
+        if existing.version != user.version as i64 {
             return Err(Error::RepositoryError(RepositoryError::Conflict));
         }
 
@@ -89,13 +92,16 @@ impl UserRepository for UserRepositoryAdapter {
 
     #[tracing::instrument(level = "trace", skip(self, transaction))]
     async fn delete_user(&self, transaction: &dyn Transaction, user: User) -> Result<User, Error> {
+        if user.id == 0 {
+            return Err(Error::InvalidId(user.id));
+        }
         let transaction = TransactionImpl::get_db_transaction(transaction)?;
 
-        let existing = prelude::Users::find_by_id(user.id).one(transaction).await.map_err(handle_dberr)?;
+        let existing = prelude::Users::find_by_id(user.id as i64).one(transaction).await.map_err(handle_dberr)?;
         let Some(existing) = existing else {
             return Err(Error::RepositoryError(RepositoryError::NotFound));
         };
-        if existing.version != user.version {
+        if existing.version != user.version as i64 {
             return Err(Error::RepositoryError(RepositoryError::Conflict));
         }
 
@@ -106,16 +112,10 @@ impl UserRepository for UserRepositoryAdapter {
     }
 
     #[tracing::instrument(level = "trace", skip(self, transaction))]
-    async fn list_users(&self, transaction: &dyn Transaction, start_id: Option<i64>, page_size: Option<u64>) -> Result<Vec<User>, Error> {
+    async fn list_users(&self, transaction: &dyn Transaction, start_id: Option<UserId>, page_size: Option<u64>) -> Result<Vec<User>, Error> {
         const DEFAULT_PAGE_SIZE: u64 = 50;
         /// Limit maximum page size to prevent excessively large responses.
         const MAX_PAGE_SIZE: u64 = 50;
-
-        if let Some(start_id) = start_id {
-            if start_id < 0 {
-                return Err(Error::InvalidId(start_id));
-            }
-        }
 
         if let Some(page_size) = page_size {
             if page_size < 1 {
@@ -128,7 +128,7 @@ impl UserRepository for UserRepositoryAdapter {
         let mut query = prelude::Users::find().order_by_asc(users::Column::Id);
 
         if let Some(start_id) = start_id {
-            query = query.filter(users::Column::Id.gte(start_id));
+            query = query.filter(users::Column::Id.gte(start_id as i64));
         }
 
         let page_size = page_size.unwrap_or(DEFAULT_PAGE_SIZE).min(MAX_PAGE_SIZE);
@@ -140,14 +140,17 @@ impl UserRepository for UserRepositoryAdapter {
     }
 
     #[tracing::instrument(level = "trace", skip(self, transaction))]
-    async fn find_by_id(&self, transaction: &dyn Transaction, id: i64) -> Result<Option<User>, Error> {
-        if id < 0 {
+    async fn find_by_id(&self, transaction: &dyn Transaction, id: UserId) -> Result<Option<User>, Error> {
+        if id == 0 {
             return Err(Error::InvalidId(id));
         }
-
         let transaction = TransactionImpl::get_db_transaction(transaction)?;
 
-        Ok(prelude::Users::find_by_id(id).one(transaction).await.map_err(handle_dberr)?.map(Into::into))
+        Ok(prelude::Users::find_by_id(id as i64)
+            .one(transaction)
+            .await
+            .map_err(handle_dberr)?
+            .map(Into::into))
     }
 
     #[tracing::instrument(level = "trace", skip(self, transaction))]
@@ -162,11 +165,11 @@ impl UserRepository for UserRepositoryAdapter {
     }
 
     #[tracing::instrument(level = "trace", skip(self, transaction))]
-    async fn find_by_token(&self, transaction: &dyn Transaction, token: Uuid) -> Result<Option<User>, Error> {
+    async fn find_by_token(&self, transaction: &dyn Transaction, token: UserToken) -> Result<Option<User>, Error> {
         let transaction = TransactionImpl::get_db_transaction(transaction)?;
 
         Ok(prelude::Users::find()
-            .filter(users::Column::Token.eq(token))
+            .filter(users::Column::Token.eq(token.to_string()))
             .one(transaction)
             .await
             .map_err(handle_dberr)?
@@ -180,10 +183,10 @@ mod tests {
 
     use hex_play_core::{
         Error, RepositoryError,
-        models::{Email, NewUser, User},
+        models::{Email, NewUser, User, user::UserToken},
         repositories::RepositoryService,
     };
-    use sea_orm::{Database, prelude::Uuid};
+    use sea_orm::Database;
 
     use crate::create_repository_service;
 
@@ -205,7 +208,7 @@ mod tests {
 
         assert!(result.is_ok());
         let user = result.unwrap();
-        assert_eq!(user.id, 1);
+        assert_ne!(user.id, 0);
         assert_eq!(user.name, "John Doe");
         assert_eq!(user.email.as_str(), "john@example.com");
     }
@@ -250,10 +253,10 @@ mod tests {
         let svc = setup().await;
         let tx = svc.repository().begin().await.unwrap();
 
-        let result = svc.user_repository().find_by_id(&*tx, -1).await;
+        let result = svc.user_repository().find_by_id(&*tx, 0).await;
 
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), Error::InvalidId(-1)));
+        assert!(matches!(result.unwrap_err(), Error::InvalidId(0)));
     }
 
     // ===================
@@ -310,12 +313,13 @@ mod tests {
         let result = svc.user_repository().list_users(&*tx, None, None).await;
 
         assert!(result.is_ok());
-        let users = result.unwrap();
+        let mut users = result.unwrap();
         assert_eq!(users.len(), 2);
-        assert_eq!(users[0].name, "John Doe");
-        assert_eq!(users[0].age.value(), 30);
-        assert_eq!(users[1].name, "Jane Doe");
-        assert_eq!(users[1].age.value(), 25);
+        users.sort_by(|a, b| a.name.cmp(&b.name));
+        assert_eq!(users[0].name, "Jane Doe");
+        assert_eq!(users[0].age.value(), 25);
+        assert_eq!(users[1].name, "John Doe");
+        assert_eq!(users[1].age.value(), 30);
     }
 
     #[tokio::test]
@@ -330,14 +334,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_list_users_invalid_start_id() {
+    async fn test_list_users_start_id_zero() {
         let svc = setup().await;
         let tx = svc.repository().begin().await.unwrap();
 
-        let result = svc.user_repository().list_users(&*tx, Some(-1), None).await;
+        let result = svc.user_repository().list_users(&*tx, Some(0), None).await;
 
-        assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), Error::InvalidId(-1)));
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_empty());
     }
 
     #[tokio::test]
@@ -415,12 +419,12 @@ mod tests {
         let svc = setup().await;
         let tx = svc.repository().begin().await.unwrap();
 
-        let user = User::fake(-1, "Invalid", "invalid@example.com");
+        let user = User::fake(0, "Invalid", "invalid@example.com");
 
         let result = svc.user_repository().update_user(&*tx, user).await;
 
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), Error::InvalidId(-1)));
+        assert!(matches!(result.unwrap_err(), Error::InvalidId(0)));
     }
 
     // ===================
@@ -437,11 +441,12 @@ mod tests {
             .await
             .unwrap();
 
+        let inserted_id = inserted.id;
         let result = svc.user_repository().delete_user(&*tx, inserted).await;
 
         assert!(result.is_ok());
         let deleted = result.unwrap();
-        assert_eq!(deleted.id, 1);
+        assert_eq!(deleted.id, inserted_id);
         assert_eq!(deleted.name, "John Doe");
     }
 
@@ -508,7 +513,7 @@ mod tests {
         let svc = setup().await;
         let tx = svc.repository().begin().await.unwrap();
 
-        let result = svc.user_repository().find_by_token(&*tx, Uuid::new_v4()).await;
+        let result = svc.user_repository().find_by_token(&*tx, UserToken::generate()).await;
 
         assert!(result.is_ok());
         assert!(result.unwrap().is_none());

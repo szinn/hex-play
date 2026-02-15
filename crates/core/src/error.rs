@@ -16,7 +16,7 @@ pub enum ErrorKind {
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum Error {
     #[error("Invalid ID: {0}")]
-    InvalidId(i64),
+    InvalidId(u64),
 
     #[error("Invalid page size: {0}")]
     InvalidPageSize(u64),
@@ -27,8 +27,8 @@ pub enum Error {
     #[error("Invalid transaction type")]
     InvalidTransactionType,
 
-    #[error("Invalid UUID: {0}")]
-    InvalidUuid(String),
+    #[error("Invalid token: {0}")]
+    InvalidToken(String),
 
     #[error("Infrastructure error: {0}")]
     Infrastructure(String),
@@ -48,7 +48,7 @@ impl Error {
     /// Returns the error kind for response mapping in adapters.
     pub fn kind(&self) -> ErrorKind {
         match self {
-            Error::InvalidId(_) | Error::InvalidPageSize(_) | Error::InvalidUuid(_) => ErrorKind::BadRequest,
+            Error::InvalidId(_) | Error::InvalidPageSize(_) | Error::InvalidToken(_) => ErrorKind::BadRequest,
             Error::Validation(_) => ErrorKind::InvalidInput,
             Error::InvalidTransactionType | Error::Infrastructure(_) => ErrorKind::Internal,
             Error::RepositoryError(e) => e.kind(),

@@ -3,11 +3,12 @@
 
 use std::sync::{Arc, Mutex};
 
-use uuid::Uuid;
-
 use crate::{
     Error,
-    models::{NewUser, User},
+    models::{
+        NewUser, User,
+        user::{UserId, UserToken},
+    },
     services::{CoreServices, UserService},
 };
 
@@ -80,7 +81,7 @@ impl UserService for MockUserService {
             .unwrap_or_else(|| Err(Error::MockNotConfigured("update_user")))
     }
 
-    async fn list_users(&self, _start_id: Option<i64>, _page_size: Option<u64>) -> Result<Vec<User>, Error> {
+    async fn list_users(&self, _start_id: Option<UserId>, _page_size: Option<u64>) -> Result<Vec<User>, Error> {
         self.list_users_result
             .lock()
             .unwrap()
@@ -88,7 +89,7 @@ impl UserService for MockUserService {
             .unwrap_or_else(|| Err(Error::MockNotConfigured("list_users")))
     }
 
-    async fn delete_user(&self, _id: i64) -> Result<User, Error> {
+    async fn delete_user(&self, _id: UserId) -> Result<User, Error> {
         self.delete_user_result
             .lock()
             .unwrap()
@@ -96,7 +97,7 @@ impl UserService for MockUserService {
             .unwrap_or_else(|| Err(Error::MockNotConfigured("delete_user")))
     }
 
-    async fn find_by_id(&self, _id: i64) -> Result<Option<User>, Error> {
+    async fn find_by_id(&self, _id: UserId) -> Result<Option<User>, Error> {
         self.find_by_id_result
             .lock()
             .unwrap()
@@ -104,7 +105,7 @@ impl UserService for MockUserService {
             .unwrap_or_else(|| Err(Error::MockNotConfigured("find_by_id")))
     }
 
-    async fn find_by_token(&self, _token: Uuid) -> Result<Option<User>, Error> {
+    async fn find_by_token(&self, _token: UserToken) -> Result<Option<User>, Error> {
         self.find_by_token_result
             .lock()
             .unwrap()

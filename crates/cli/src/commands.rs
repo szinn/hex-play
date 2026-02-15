@@ -1,5 +1,6 @@
 mod server;
 
+use hex_play_core::models::user::UserId;
 pub use server::*;
 
 #[derive(Debug, clap::Parser)]
@@ -37,11 +38,11 @@ pub enum Commands {
     AddUser { name: String, email: String, age: i16 },
 
     #[command(about = "Delete user", display_order = 31)]
-    DeleteUser { id: i64 },
+    DeleteUser { id: UserId },
 
     #[command(about = "Update user", display_order = 32)]
     UpdateUser {
-        id: i64,
+        id: UserId,
         #[arg(value_name = "name")]
         name: Option<String>,
         #[arg(value_name = "email")]

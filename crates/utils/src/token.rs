@@ -26,6 +26,9 @@ pub trait TokenPrefix: fmt::Debug + Clone + PartialEq + Eq {
 
 /// Trait that abstracts encode/decode over the numeric backing type.
 pub trait TokenId: Copy + PartialEq + Eq + Hash + fmt::Debug {
+    /// The zero value for this type.
+    const ZERO: Self;
+
     /// Length of the encoded identifier portion (excluding the prefix).
     const ENCODED_LEN: usize;
 
@@ -36,15 +39,17 @@ pub trait TokenId: Copy + PartialEq + Eq + Hash + fmt::Debug {
     /// Decode a base-32 string back into this numeric type.
     fn decode(s: &str) -> Result<Self, TokenError>;
 
-    /// Generate a random value.
-    fn random() -> Self;
+    /// Generate a random value in `1..=max` where `max` is provided as a
+    /// `u128` (from the const generic on [`Token`]).
+    fn random_in_range(max: u128) -> Self;
 }
 
 impl TokenId for u64 {
+    const ZERO: Self = 0;
     const ENCODED_LEN: usize = 13; // 32^13 > u64::MAX
 
-    fn random() -> Self {
-        rand::rng().random()
+    fn random_in_range(max: u128) -> Self {
+        rand::rng().random_range(1..=max as u64)
     }
 
     fn encode(self) -> String {
@@ -73,10 +78,11 @@ impl TokenId for u64 {
 }
 
 impl TokenId for u128 {
+    const ZERO: Self = 0;
     const ENCODED_LEN: usize = 26; // 32^26 > u128::MAX
 
-    fn random() -> Self {
-        rand::rng().random()
+    fn random_in_range(max: u128) -> Self {
+        rand::rng().random_range(1..=max)
     }
 
     fn encode(self) -> String {
@@ -108,13 +114,17 @@ impl TokenId for u128 {
 ///
 /// Stores only the numeric ID internally. The string representation (e.g.
 /// `U_ABCD1234NRST0`) is computed on demand via [`Display`].
+///
+/// The `MAX` const generic controls the upper bound for random ID generation
+/// via [`Token::generate`]. This allows token types to cap their range (e.g.
+/// to `i64::MAX` for database-safe storage) without changing the backing type.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Token<P: TokenPrefix, I: TokenId = u64> {
+pub struct Token<P: TokenPrefix, I: TokenId = u64, const MAX: u128 = { u64::MAX as u128 }> {
     id: I,
     _marker: PhantomData<P>,
 }
 
-impl<P: TokenPrefix, I: TokenId> fmt::Debug for Token<P, I> {
+impl<P: TokenPrefix, I: TokenId, const MAX: u128> fmt::Debug for Token<P, I, MAX> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Token({self})")
     }
@@ -136,15 +146,15 @@ pub enum TokenError {
     Overflow,
 }
 
-impl<P: TokenPrefix, I: TokenId> Token<P, I> {
+impl<P: TokenPrefix, I: TokenId, const MAX: u128> Token<P, I, MAX> {
     /// Create a token from a numeric ID.
     pub fn new(id: I) -> Self {
         Self { id, _marker: PhantomData }
     }
 
-    /// Generate a new token with a random ID.
+    /// Generate a new token with a random ID in `1..=MAX`.
     pub fn generate() -> Self {
-        Self::new(I::random())
+        Self::new(I::random_in_range(MAX))
     }
 
     /// Parse a token from its string representation (e.g. `"U_ABCD1234NRST0"`).
@@ -181,13 +191,13 @@ impl<P: TokenPrefix, I: TokenId> Token<P, I> {
     }
 }
 
-impl<P: TokenPrefix, I: TokenId> fmt::Display for Token<P, I> {
+impl<P: TokenPrefix, I: TokenId, const MAX: u128> fmt::Display for Token<P, I, MAX> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}{}", P::PREFIX, self.id.encode())
     }
 }
 
-impl<P: TokenPrefix, I: TokenId> FromStr for Token<P, I> {
+impl<P: TokenPrefix, I: TokenId, const MAX: u128> FromStr for Token<P, I, MAX> {
     type Err = TokenError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -195,13 +205,13 @@ impl<P: TokenPrefix, I: TokenId> FromStr for Token<P, I> {
     }
 }
 
-impl<P: TokenPrefix, I: TokenId> Serialize for Token<P, I> {
+impl<P: TokenPrefix, I: TokenId, const MAX: u128> Serialize for Token<P, I, MAX> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.serialize_str(&self.to_string())
     }
 }
 
-impl<'de, P: TokenPrefix, I: TokenId> Deserialize<'de> for Token<P, I> {
+impl<'de, P: TokenPrefix, I: TokenId, const MAX: u128> Deserialize<'de> for Token<P, I, MAX> {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let s = String::deserialize(deserializer)?;
         Self::parse(&s).map_err(de::Error::custom)
@@ -217,7 +227,7 @@ impl<'de, P: TokenPrefix, I: TokenId> Deserialize<'de> for Token<P, I> {
 ///
 /// define_token_prefix!(UserPrefix, "U_");
 /// type UserId = u64;
-/// type UserToken = Token<UserPrefix>;          // u64 (default)
+/// type UserToken = Token<UserPrefix>;          // u64 (default), MAX = u64::MAX
 ///
 /// define_token_prefix!(SessionPrefix, "S_");
 /// type SessionId = u128;
@@ -427,5 +437,19 @@ mod tests {
         let token = BigToken::new(0);
         let debug = format!("{token:?}");
         assert_eq!(debug, "Token(B_AAAAAAAAAAAAAAAAAAAAAAAAAA)");
+    }
+
+    // --- custom MAX tests ---
+
+    define_token_prefix!(CappedPrefix, "C_");
+    type CappedToken = Token<CappedPrefix, u64, { i64::MAX as u128 }>;
+
+    #[test]
+    fn capped_generate_respects_max() {
+        for _ in 0..1000 {
+            let token = CappedToken::generate();
+            assert!(token.id() >= 1);
+            assert!(token.id() <= i64::MAX as u64);
+        }
     }
 }

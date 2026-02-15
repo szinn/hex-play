@@ -9,12 +9,12 @@ use {
 
 #[derive(Serialize, Deserialize, Debug)]
 struct UserResponse {
-    id: i64,
+    id: u64,
     token: String,
     name: String,
     email: String,
     age: i64,
-    version: i64,
+    version: u64,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
 }

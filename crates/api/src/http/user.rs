@@ -8,11 +8,13 @@ use axum::{
 };
 use chrono::{DateTime, Utc};
 use hex_play_core::{
-    models::{Age, Email, NewUser, PartialUserUpdate, User},
+    models::{
+        Age, Email, NewUser, PartialUserUpdate, User,
+        user::{UserId, UserToken},
+    },
     services::CoreServices,
 };
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 use crate::http::error::Error;
 
@@ -48,12 +50,12 @@ impl From<CreateUserRequest> for NewUser {
 
 #[derive(Serialize, Debug)]
 struct UserResponse {
-    id: i64,
-    token: Uuid,
+    id: u64,
+    token: String,
     name: String,
     email: Email,
     age: Age,
-    version: i64,
+    version: u64,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
 }
@@ -62,7 +64,7 @@ impl From<User> for UserResponse {
     fn from(user: User) -> Self {
         Self {
             id: user.id,
-            token: user.token,
+            token: user.token.to_string(),
             name: user.name,
             email: user.email,
             age: user.age,
@@ -84,7 +86,7 @@ async fn create_user(
 
 #[derive(Deserialize, Debug, Default)]
 pub struct FilterOptions {
-    pub start_id: Option<i64>,
+    pub start_id: Option<UserId>,
     pub page_size: Option<u64>,
 }
 
@@ -108,13 +110,13 @@ async fn list_users(Query(opts): Query<FilterOptions>, State(core_services): Sta
 }
 
 #[tracing::instrument(level = "trace", skip(core_services))]
-async fn get_user(Path(id): Path<i64>, State(core_services): State<Arc<CoreServices>>) -> Result<Json<UserResponse>, Error> {
+async fn get_user(Path(id): Path<UserId>, State(core_services): State<Arc<CoreServices>>) -> Result<Json<UserResponse>, Error> {
     let user = core_services.user_service.find_by_id(id).await.map_err(Error::Core)?.ok_or(Error::NotFound)?;
     Ok(Json(user.into()))
 }
 
 #[tracing::instrument(level = "trace", skip(core_services))]
-async fn get_user_by_token(Path(token): Path<Uuid>, State(core_services): State<Arc<CoreServices>>) -> Result<Json<UserResponse>, Error> {
+async fn get_user_by_token(Path(token): Path<UserToken>, State(core_services): State<Arc<CoreServices>>) -> Result<Json<UserResponse>, Error> {
     let user = core_services
         .user_service
         .find_by_token(token)
@@ -143,7 +145,7 @@ impl From<UpdateUserRequest> for PartialUserUpdate {
 
 #[tracing::instrument(level = "trace", skip(core_services))]
 async fn update_user(
-    Path(id): Path<i64>,
+    Path(id): Path<UserId>,
     State(core_services): State<Arc<CoreServices>>,
     Json(request): Json<UpdateUserRequest>,
 ) -> Result<Json<UserResponse>, Error> {
@@ -157,7 +159,7 @@ async fn update_user(
 }
 
 #[tracing::instrument(level = "trace", skip(core_services))]
-async fn delete_user(Path(id): Path<i64>, State(core_services): State<Arc<CoreServices>>) -> Result<Json<UserResponse>, Error> {
+async fn delete_user(Path(id): Path<UserId>, State(core_services): State<Arc<CoreServices>>) -> Result<Json<UserResponse>, Error> {
     let user = core_services.user_service.delete_user(id).await.map_err(Error::Core)?;
     Ok(Json(user.into()))
 }
@@ -171,11 +173,10 @@ mod tests {
     };
     use hex_play_core::{
         Error, RepositoryError,
-        models::User,
+        models::{User, user::UserToken},
         test_support::{MockUserService, create_arc_core_services_with_mock},
     };
     use tower::ServiceExt;
-    use uuid::Uuid;
 
     use super::get_routes;
 
@@ -374,7 +375,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_list_users_invalid_start_id() {
-        let mock = MockUserService::default().with_list_users_result(Err(Error::InvalidId(-1)));
+        let mock = MockUserService::default().with_list_users_result(Err(Error::InvalidId(0)));
         let app = create_test_app(mock);
 
         let response = app
@@ -438,7 +439,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_user_invalid_id() {
-        let mock = MockUserService::default().with_find_by_id_result(Err(Error::InvalidId(-1)));
+        let mock = MockUserService::default().with_find_by_id_result(Err(Error::InvalidId(0)));
         let app = create_test_app(mock);
 
         let response = app
@@ -649,7 +650,7 @@ mod tests {
         let mock = MockUserService::default().with_find_by_token_result(Ok(None));
         let app = create_test_app(mock);
 
-        let token = Uuid::new_v4();
+        let token = UserToken::generate();
         let response = app
             .oneshot(
                 Request::builder()

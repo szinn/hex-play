@@ -32,7 +32,6 @@ tonic-prost.workspace = true
 tower.workspace = true
 tower-http.workspace = true
 tracing.workspace = true
-uuid.workspace = true
 
 [dev-dependencies]
 hex-play-core = { workspace = true, features = ["test-support"] }

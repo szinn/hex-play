@@ -53,7 +53,7 @@ mod tests {
 
     #[test]
     fn test_invalid_id_maps_to_invalid_argument() {
-        let error = Error::InvalidId(-1);
+        let error = Error::InvalidId(0);
 
         let status = map_core_error(error);
 
@@ -86,14 +86,5 @@ mod tests {
         let status = map_core_error(error);
 
         assert_eq!(status.code(), Code::Internal);
-    }
-
-    #[test]
-    fn test_invalid_uuid_maps_to_bad_request() {
-        let error = Error::InvalidUuid("not-a-uuid".into());
-
-        let status = map_core_error(error);
-
-        assert_eq!(status.code(), Code::InvalidArgument);
     }
 }

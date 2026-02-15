@@ -11,6 +11,7 @@ repository = { workspace = true }
 
 [dependencies]
 hex-play-core.workspace = true
+hex-play-utils.workspace = true
 
 async-trait.workspace = true
 chrono.workspace = true

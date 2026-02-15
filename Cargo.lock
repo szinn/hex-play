@@ -2183,7 +2183,6 @@ dependencies = [
  "tower",
  "tower-http",
  "tracing",
- "uuid",
 ]
 
 [[package]]
@@ -2217,12 +2216,12 @@ dependencies = [
  "async-trait",
  "chrono",
  "derive_builder",
+ "hex-play-utils",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
- "uuid",
 ]
 
 [[package]]
@@ -2232,6 +2231,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "hex-play-core",
+ "hex-play-utils",
  "sea-orm",
  "sea-orm-migration",
  "serde",
@@ -2254,7 +2254,6 @@ dependencies = [
  "tower",
  "tower-http",
  "tracing",
- "uuid",
 ]
 
 [[package]]
