@@ -216,10 +216,12 @@ impl<'de, P: TokenPrefix, I: TokenId> Deserialize<'de> for Token<P, I> {
 /// use hex_play_utils::{define_token_prefix, token::Token};
 ///
 /// define_token_prefix!(UserPrefix, "U_");
+/// type UserId = u64;
 /// type UserToken = Token<UserPrefix>;          // u64 (default)
 ///
 /// define_token_prefix!(SessionPrefix, "S_");
-/// type SessionToken = Token<SessionPrefix, u128>; // u128
+/// type SessionId = u128;
+/// type SessionToken = Token<SessionPrefix, SessionId>;
 /// ```
 #[macro_export]
 macro_rules! define_token_prefix {
@@ -241,7 +243,8 @@ mod tests {
     type TestToken = Token<TestPrefix>;
 
     define_token_prefix!(UserPrefix, "U_");
-    type UserToken = Token<UserPrefix>;
+    type UserId = u64;
+    type UserToken = Token<UserPrefix, UserId>;
 
     // --- u64 tests (unchanged, use default type parameter) ---
 
