@@ -107,17 +107,22 @@ impl SessionRepository for SessionRepositoryAdapter {
         let transaction = TransactionImpl::get_db_transaction(transaction)?;
         let now = Utc::now();
 
-        let expired = prelude::Sessions::find()
+        // Fetch only the IDs of expired sessions
+        let ids: Vec<String> = prelude::Sessions::find()
+            .select_only()
+            .column(sessions::Column::Id)
             .filter(sessions::Column::ExpiresAt.lt(now))
+            .into_tuple()
             .all(transaction)
             .await
             .map_err(handle_dberr)?;
 
-        let ids: Vec<String> = expired.iter().map(|m| m.id.clone()).collect();
-
-        for model in expired {
-            model.delete(transaction).await.map_err(handle_dberr)?;
-        }
+        // Bulk delete all expired sessions in a single query
+        prelude::Sessions::delete_many()
+            .filter(sessions::Column::ExpiresAt.lt(now))
+            .exec(transaction)
+            .await
+            .map_err(handle_dberr)?;
 
         Ok(ids)
     }
