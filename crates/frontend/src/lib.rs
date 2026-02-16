@@ -29,7 +29,7 @@ pub mod server {
     use axum_session_auth::{AuthConfig, AuthSessionLayer, Authentication, HasPermission};
     use chrono::DateTime;
     use hex_play_core::{
-        models::session::NewSession,
+        models::{session::NewSession, user::UserId},
         services::{CoreServices, SessionService},
     };
     use serde::{Deserialize, Serialize};
@@ -52,7 +52,7 @@ pub mod server {
         }
     }
 
-    pub(crate) type AuthSession = axum_session_auth::AuthSession<AuthUser, i64, BackendSessionPool, BackendSessionPool>;
+    pub(crate) type AuthSession = axum_session_auth::AuthSession<AuthUser, UserId, BackendSessionPool, BackendSessionPool>;
 
     #[async_trait::async_trait]
     impl DatabasePool for BackendSessionPool {
@@ -136,7 +136,7 @@ pub mod server {
     /// TODO: Replace with a real user backed by CoreServices.
     #[derive(Clone, Debug, Serialize, Deserialize)]
     pub(crate) struct AuthUser {
-        id: i64,
+        id: UserId,
         anonymous: bool,
         pub username: String,
         pub permissions: HashSet<String>,
@@ -154,9 +154,9 @@ pub mod server {
     }
 
     #[async_trait::async_trait]
-    impl Authentication<Self, i64, BackendSessionPool> for AuthUser {
+    impl Authentication<Self, UserId, BackendSessionPool> for AuthUser {
         #[tracing::instrument(level = "trace", skip(_pool))]
-        async fn load_user(userid: i64, _pool: Option<&BackendSessionPool>) -> Result<Self, anyhow::Error> {
+        async fn load_user(userid: UserId, _pool: Option<&BackendSessionPool>) -> Result<Self, anyhow::Error> {
             let mut permissions = HashSet::new();
             if userid == 2 {
                 permissions.insert("Admin::View".into());
@@ -204,7 +204,7 @@ pub mod server {
                     session_service: core_services.session_service.clone(),
                 };
                 let session_config = SessionConfig::default();
-                let auth_config = AuthConfig::<i64>::default().with_anonymous_user_id(Some(1));
+                let auth_config = AuthConfig::<UserId>::default().with_anonymous_user_id(Some(1));
                 async move {
                     let x_request_id = HeaderName::from_static(REQUEST_ID_HEADER);
 
@@ -226,7 +226,7 @@ pub mod server {
                         .layer(SessionLayer::new(
                             SessionStore::<BackendSessionPool>::new(Some(backend_pool.clone()), session_config).await?,
                         ))
-                        .layer(AuthSessionLayer::<AuthUser, i64, BackendSessionPool, BackendSessionPool>::new(Some(backend_pool)).with_config(auth_config));
+                        .layer(AuthSessionLayer::<AuthUser, UserId, BackendSessionPool, BackendSessionPool>::new(Some(backend_pool)).with_config(auth_config));
 
                     let router = dioxus::server::router(HexPlayFrontend).layer(Extension(core_services)).layer(middleware);
                     Ok(router)

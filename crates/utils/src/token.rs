@@ -36,6 +36,10 @@ pub trait TokenId: Copy + PartialEq + Eq + Hash + fmt::Debug {
     /// characters.
     fn encode(self) -> String;
 
+    /// Encode this value directly into a byte buffer. The buffer must be
+    /// exactly [`Self::ENCODED_LEN`] bytes. All bytes will be valid ASCII.
+    fn encode_to_buf(self, buf: &mut [u8]);
+
     /// Decode a base-32 string back into this numeric type.
     fn decode(s: &str) -> Result<Self, TokenError>;
 
@@ -53,14 +57,18 @@ impl TokenId for u64 {
     }
 
     fn encode(self) -> String {
-        let mut buf = [b'A'; Self::ENCODED_LEN];
+        let mut buf = [0u8; Self::ENCODED_LEN];
+        self.encode_to_buf(&mut buf);
+        // SAFETY: all bytes come from ALPHABET which is ASCII
+        String::from_utf8(buf.to_vec()).expect("alphabet is ASCII")
+    }
+
+    fn encode_to_buf(self, buf: &mut [u8]) {
         let mut remaining = self;
         for i in (0..Self::ENCODED_LEN).rev() {
             buf[i] = ALPHABET[(remaining & 0x1F) as usize];
             remaining >>= 5;
         }
-        // SAFETY: all bytes come from ALPHABET which is ASCII
-        String::from_utf8(buf.to_vec()).expect("alphabet is ASCII")
     }
 
     fn decode(s: &str) -> Result<Self, TokenError> {
@@ -86,14 +94,18 @@ impl TokenId for u128 {
     }
 
     fn encode(self) -> String {
-        let mut buf = [b'A'; Self::ENCODED_LEN];
+        let mut buf = [0u8; Self::ENCODED_LEN];
+        self.encode_to_buf(&mut buf);
+        // SAFETY: all bytes come from ALPHABET which is ASCII
+        String::from_utf8(buf.to_vec()).expect("alphabet is ASCII")
+    }
+
+    fn encode_to_buf(self, buf: &mut [u8]) {
         let mut remaining = self;
         for i in (0..Self::ENCODED_LEN).rev() {
             buf[i] = ALPHABET[(remaining & 0x1F) as usize];
             remaining >>= 5;
         }
-        // SAFETY: all bytes come from ALPHABET which is ASCII
-        String::from_utf8(buf.to_vec()).expect("alphabet is ASCII")
     }
 
     fn decode(s: &str) -> Result<Self, TokenError> {
@@ -193,7 +205,12 @@ impl<P: TokenPrefix, I: TokenId, const MAX: u128> Token<P, I, MAX> {
 
 impl<P: TokenPrefix, I: TokenId, const MAX: u128> fmt::Display for Token<P, I, MAX> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}{}", P::PREFIX, self.id.encode())
+        f.write_str(P::PREFIX)?;
+        let mut buf = [0u8; 26]; // max encoded length (u128)
+        let buf = &mut buf[..I::ENCODED_LEN];
+        self.id.encode_to_buf(buf);
+        // SAFETY: all bytes come from ALPHABET which is ASCII
+        f.write_str(std::str::from_utf8(buf).expect("alphabet is ASCII"))
     }
 }
 
@@ -207,7 +224,7 @@ impl<P: TokenPrefix, I: TokenId, const MAX: u128> FromStr for Token<P, I, MAX> {
 
 impl<P: TokenPrefix, I: TokenId, const MAX: u128> Serialize for Token<P, I, MAX> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&self.to_string())
+        serializer.collect_str(self)
     }
 }
 

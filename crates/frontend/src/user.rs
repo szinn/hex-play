@@ -93,12 +93,13 @@ pub async fn get_user_name() -> Result<String> {
 #[tracing::instrument(level = "trace", skip(auth))]
 pub async fn get_permissions() -> Result<HashSet<String>> {
     use axum_session_auth::{Auth, Rights};
+    use hex_play_core::models::user::UserId;
 
     use crate::server::{AuthUser, BackendSessionPool};
 
     let user = auth.current_user.clone().unwrap();
 
-    Auth::<AuthUser, i64, BackendSessionPool>::build([axum::http::Method::GET], false)
+    Auth::<AuthUser, UserId, BackendSessionPool>::build([axum::http::Method::GET], false)
         .requires(Rights::any([Rights::permission("Category::View"), Rights::permission("Admin::View")]))
         .validate(&user, &axum::http::Method::GET, None)
         .await
