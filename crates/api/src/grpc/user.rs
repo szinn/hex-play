@@ -78,7 +78,7 @@ pub(crate) mod handler {
             id: user.id,
             token: user.token.to_string(),
             name: user.name,
-            email: user.email.to_string(),
+            email: user.email.into_inner(),
             age: user.age.value() as i32,
             version: user.version,
             created_at: Some(prost_types::Timestamp {

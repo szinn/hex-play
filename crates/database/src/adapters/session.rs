@@ -4,7 +4,7 @@ use hex_play_core::{
     models::session::{NewSession, Session},
     repositories::{SessionRepository, Transaction},
 };
-use sea_orm::{ActiveValue::Set, ColumnTrait, EntityTrait, ModelTrait, PaginatorTrait, QueryFilter, sea_query::OnConflict};
+use sea_orm::{ActiveValue::Set, ColumnTrait, EntityTrait, ModelTrait, PaginatorTrait, QueryFilter, QuerySelect, sea_query::OnConflict};
 
 use crate::{
     entities::{prelude, sessions},
@@ -97,7 +97,9 @@ impl SessionRepository for SessionRepositoryAdapter {
     async fn exists(&self, transaction: &dyn Transaction, id: &str) -> Result<bool, Error> {
         let transaction = TransactionImpl::get_db_transaction(transaction)?;
 
-        Ok(prelude::Sessions::find_by_id(id).one(transaction).await.map_err(handle_dberr)?.is_some())
+        let count = prelude::Sessions::find_by_id(id).count(transaction).await.map_err(handle_dberr)?;
+
+        Ok(count > 0)
     }
 
     #[tracing::instrument(level = "trace", skip(self, transaction))]
@@ -133,9 +135,15 @@ impl SessionRepository for SessionRepositoryAdapter {
     async fn get_ids(&self, transaction: &dyn Transaction) -> Result<Vec<String>, Error> {
         let transaction = TransactionImpl::get_db_transaction(transaction)?;
 
-        let sessions = prelude::Sessions::find().all(transaction).await.map_err(handle_dberr)?;
+        let ids: Vec<String> = prelude::Sessions::find()
+            .select_only()
+            .column(sessions::Column::Id)
+            .into_tuple()
+            .all(transaction)
+            .await
+            .map_err(handle_dberr)?;
 
-        Ok(sessions.into_iter().map(|m| m.id).collect())
+        Ok(ids)
     }
 }
 

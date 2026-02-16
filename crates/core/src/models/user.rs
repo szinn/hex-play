@@ -122,23 +122,27 @@ impl PartialUserUpdate {
     /// # Errors
     ///
     /// Returns `Error::Validation` if email or age is invalid.
-    pub fn new(name: Option<String>, email: Option<String>, age: Option<i16>) -> Result<Self, Error> {
+    pub fn new(
+        name: Option<impl Into<String>>,
+        email: Option<impl Into<String>>,
+        age: Option<i16>,
+    ) -> Result<Self, Error> {
         Ok(Self {
-            name,
+            name: name.map(Into::into),
             email: email.map(Email::new).transpose()?,
             age: age.map(Age::new).transpose()?,
         })
     }
 
-    /// Apply this partial update to an existing user.
+    /// Apply this partial update to an existing user, consuming self.
     ///
     /// Only modifies fields that have `Some` values.
-    pub fn apply_to(&self, user: &mut User) {
-        if let Some(name) = &self.name {
-            user.name = name.clone();
+    pub fn apply_to(self, user: &mut User) {
+        if let Some(name) = self.name {
+            user.name = name;
         }
-        if let Some(email) = &self.email {
-            user.email = email.clone();
+        if let Some(email) = self.email {
+            user.email = email;
         }
         if let Some(age) = self.age {
             user.age = age;
