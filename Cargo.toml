@@ -19,14 +19,14 @@ hex-play-frontend = { path = "crates/frontend" }
 hex-play-utils = { path = "crates/utils" }
 
 anyhow = "1.0.101"
-rand = "0.10.0"
 async-trait = "0.1.89"
 axum = "0.8.8"
-prost-types = "0.14.3"
 config = "0.15.19"
 derive_builder = "0.20.2"
 log = "0.4.29"
 prost = "0.14.3"
+prost-types = "0.14.3"
+rand = "0.10.0"
 serde_json = "1.0.149"
 thiserror = "2.0.18"
 tokio-graceful-shutdown = "0.19.2"
@@ -35,6 +35,14 @@ tonic-prost = "0.14.4"
 tonic-prost-build = "0.14.4"
 tower = "0.5.3"
 tracing-log = "0.2.0"
+
+[workspace.dependencies.axum_session]
+version = "0.18.0"
+default-features = false
+
+[workspace.dependencies.axum_session_auth]
+version = "0.18.0"
+default-features = false
 
 [workspace.dependencies.chrono]
 version = "0.4.43"

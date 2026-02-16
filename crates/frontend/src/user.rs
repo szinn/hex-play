@@ -1,8 +1,11 @@
+use std::collections::HashSet;
+
 use chrono::{DateTime, Utc};
 use dioxus::prelude::*;
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "server")]
 use {
+    crate::server::AuthSession,
     hex_play_core::{models::User, services::CoreServices},
     std::sync::Arc,
 };
@@ -53,4 +56,53 @@ async fn get_users() -> Result<ListUsersResponse, ServerFnError> {
         .collect();
     let response = ListUsersResponse { users };
     Ok(response)
+}
+
+/// We use the `auth::Session` extractor to get access to the current user session.
+/// This lets us modify the user session, log in/out, and access the current user.
+#[post("/api/user/login", auth: axum::Extension<AuthSession>)]
+#[tracing::instrument(level = "trace", skip(auth))]
+pub async fn login() -> Result<()> {
+    auth.login_user(2);
+    Ok(())
+}
+
+/// Just like `login`, but this time we log out the user.
+#[post("/api/user/logout", auth: axum::Extension<AuthSession>)]
+#[tracing::instrument(level = "trace", skip(auth))]
+pub async fn logout() -> Result<()> {
+    auth.logout_user();
+    Ok(())
+}
+
+/// We can access the current user via `auth.current_user`.
+/// We can have both anonymous user (id 1) and a logged in user (id 2).
+///
+/// Logged-in users will have more permissions which we can modify.
+#[post("/api/user/name", auth: axum::Extension<AuthSession>)]
+#[tracing::instrument(level = "trace", skip(auth))]
+pub async fn get_user_name() -> Result<String> {
+    let current_user = auth.current_user.clone();
+    tracing::info!("Current user={:?}", current_user);
+    Ok(current_user.unwrap().username)
+}
+
+/// Get the current user's permissions, guarding the endpoint with the `Auth` validator.
+/// If this returns false, we use the `or_unauthorized` extension to return a 401 error.
+#[get("/api/user/permissions", auth: axum::Extension<AuthSession>)]
+#[tracing::instrument(level = "trace", skip(auth))]
+pub async fn get_permissions() -> Result<HashSet<String>> {
+    use axum_session_auth::{Auth, Rights};
+
+    use crate::server::{AuthUser, BackendSessionPool};
+
+    let user = auth.current_user.clone().unwrap();
+
+    Auth::<AuthUser, i64, BackendSessionPool>::build([axum::http::Method::GET], false)
+        .requires(Rights::any([Rights::permission("Category::View"), Rights::permission("Admin::View")]))
+        .validate(&user, &axum::http::Method::GET, None)
+        .await
+        .or_unauthorized("You do not have permission to view categories")?;
+
+    Ok(user.permissions)
 }
