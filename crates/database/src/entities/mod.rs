@@ -2,4 +2,6 @@
 
 pub(crate) mod prelude;
 
+pub(crate) mod sessions;
+
 pub(crate) mod users;

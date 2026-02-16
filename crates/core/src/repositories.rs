@@ -2,8 +2,11 @@ use std::{any::Any, future::Future, pin::Pin, sync::Arc};
 
 use derive_builder::Builder;
 
+pub mod session;
+
 pub mod user;
 
+pub use session::SessionRepository;
 pub use user::UserRepository;
 
 use crate::Error;
@@ -13,6 +16,7 @@ use crate::Error;
 pub struct RepositoryService {
     repository: Arc<dyn Repository>,
     user_repository: Arc<dyn UserRepository>,
+    session_repository: Arc<dyn SessionRepository>,
 }
 
 impl RepositoryService {
@@ -24,6 +28,11 @@ impl RepositoryService {
     /// Returns a reference to the user repository.
     pub fn user_repository(&self) -> &Arc<dyn UserRepository> {
         &self.user_repository
+    }
+
+    /// Returns a reference to the session repository.
+    pub fn session_repository(&self) -> &Arc<dyn SessionRepository> {
+        &self.session_repository
     }
 }
 

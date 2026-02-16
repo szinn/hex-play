@@ -82,9 +82,10 @@ mod tests {
         Error, RepositoryError,
         models::{
             Email, NewUser, User,
+            session::{NewSession, Session},
             user::{UserId, UserToken},
         },
-        repositories::{Repository, RepositoryServiceBuilder, Transaction, UserRepository},
+        repositories::{Repository, RepositoryServiceBuilder, SessionRepository, Transaction, UserRepository},
     };
 
     // ===================
@@ -228,6 +229,39 @@ mod tests {
     }
 
     // ===================
+    // Mock SessionRepository
+    // ===================
+    struct MockSessionRepository;
+
+    #[async_trait::async_trait]
+    impl SessionRepository for MockSessionRepository {
+        async fn count(&self, _tx: &dyn Transaction) -> Result<i64, Error> {
+            unimplemented!()
+        }
+        async fn store(&self, _tx: &dyn Transaction, _session: NewSession) -> Result<Session, Error> {
+            unimplemented!()
+        }
+        async fn load(&self, _tx: &dyn Transaction, _id: &str) -> Result<Option<Session>, Error> {
+            unimplemented!()
+        }
+        async fn delete_by_id(&self, _tx: &dyn Transaction, _id: &str) -> Result<(), Error> {
+            unimplemented!()
+        }
+        async fn exists(&self, _tx: &dyn Transaction, _id: &str) -> Result<bool, Error> {
+            unimplemented!()
+        }
+        async fn delete_by_expiry(&self, _tx: &dyn Transaction) -> Result<Vec<String>, Error> {
+            unimplemented!()
+        }
+        async fn delete_all(&self, _tx: &dyn Transaction) -> Result<(), Error> {
+            unimplemented!()
+        }
+        async fn get_ids(&self, _tx: &dyn Transaction) -> Result<Vec<String>, Error> {
+            unimplemented!()
+        }
+    }
+
+    // ===================
     // Test Helpers
     // ===================
     fn create_use_cases(mock_user_repository: MockUserRepository) -> UserServiceImpl {
@@ -235,6 +269,7 @@ mod tests {
             RepositoryServiceBuilder::default()
                 .repository(Arc::new(MockRepository) as Arc<dyn Repository>)
                 .user_repository(Arc::new(mock_user_repository) as Arc<dyn UserRepository>)
+                .session_repository(Arc::new(MockSessionRepository) as Arc<dyn SessionRepository>)
                 .build()
                 .expect("All required fields provided"),
         );

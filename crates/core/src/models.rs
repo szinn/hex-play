@@ -1,4 +1,5 @@
 pub mod newtypes;
+pub mod session;
 pub mod user;
 
 pub use newtypes::{Age, Email};
