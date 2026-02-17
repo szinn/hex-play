@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/cli"]
+members = ["crates/cli", "crates/integration-tests"]
 
 [workspace.package]
 version = "0.1.0"
@@ -17,6 +17,8 @@ hex-play-core = { path = "crates/core" }
 hex-play-database = { path = "crates/database" }
 hex-play-frontend = { path = "crates/frontend" }
 hex-play-utils = { path = "crates/utils" }
+
+testcontainers = "0.26"
 
 anyhow = "1.0.101"
 async-trait = "0.1.89"
@@ -118,6 +120,10 @@ features = ["request-id", "trace"]
 [workspace.dependencies.tracing]
 version = "0.1.44"
 features = ["log"]
+
+[workspace.dependencies.testcontainers-modules]
+version = "0.14"
+features = ["postgres"]
 
 [workspace.dependencies.tracing-subscriber]
 version = "0.3.22"

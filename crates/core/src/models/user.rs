@@ -122,11 +122,7 @@ impl PartialUserUpdate {
     /// # Errors
     ///
     /// Returns `Error::Validation` if email or age is invalid.
-    pub fn new(
-        name: Option<impl Into<String>>,
-        email: Option<impl Into<String>>,
-        age: Option<i16>,
-    ) -> Result<Self, Error> {
+    pub fn new(name: Option<impl Into<String>>, email: Option<impl Into<String>>, age: Option<i16>) -> Result<Self, Error> {
         Ok(Self {
             name: name.map(Into::into),
             email: email.map(Email::new).transpose()?,

@@ -17,7 +17,9 @@ just install-tools
 - Format code: `just fmt`
 - Update rust crate dependencies: `just deps`
 - Run clippy: `just clippy`
-- Run tests: `just test`
+- Run all tests: `just test`
+- Run component tests: `just component-tests`
+- Run integration tests: `just integration-tests`
 - Run insta tests: `just insta`
 - Clean workspace: `just clean`
 - Create changelog: `just changelog`
@@ -25,6 +27,8 @@ just install-tools
 - Create database: `just create-database`
 - Redo all migrations: `just migrations`
 - Extract database entities: `just entities`
+- Start colima for integration tests or all tests: `colima start`
+- Stop colima: `colima stop`
 
 ## Architecture
 
@@ -33,10 +37,12 @@ toward the core domain. Never introduce dependencies from `core` to outer crates
 
 ```
 crates/
-├── core/      # Domain layer: business logic, domain models, and port traits (interfaces)
-├── database/  # Adapter: implements persistence ports defined in core (SeaORM/Postgres)
-├── api/       # Adapter: HTTP interface via Axum, calls into core ports
-└── cli/       # Application entry point, wires adapters to ports
+├── core/               # Domain layer: business logic, domain models, and port traits (interfaces)
+├── database/           # Adapter: implements persistence ports defined in core (SeaORM/Postgres)
+├── api/                # Adapter: GRPC/HTTP interface via Axum, calls into core ports
+├── frontend/           # Adapter: User interface, calls into core ports
+├── cli/                # Application entry point, wires adapters to ports
+└── integration-tests/  # Intergration tests
 ```
 
 Only `crates/cli` is a direct workspace member. The other crates are pulled in transitively
@@ -59,6 +65,10 @@ Secrets should be encrypted with `sops` and never committed.
 
 ## Workflows
 
+**While Developing:**
+
+- use component tests to make sure everything passes: `just component-tests`
+
 **Before committing:**
 
 - Run tests to make sure everything passes: `just test`
@@ -67,6 +77,7 @@ Secrets should be encrypted with `sops` and never committed.
 
 ## Testing
 
+- Colima is used to manage docker containers required for integration testing
 - Use `cargo-nextest` as the test runner (`just test`)
 - Use `cargo-insta` for snapshot testing (`just insta`) when asserting against larger or
   structured output; use regular assertions for simple value checks
@@ -88,10 +99,10 @@ Secrets should be encrypted with `sops` and never committed.
   - All crate dependencies must be defined in the root `Cargo.toml` under `[workspace.dependencies]`
   - Individual crates reference them with `crate-name.workspace = true`
   - In root `Cargo.toml`: version-only deps use inline format (`anyhow = "1.0.100"`), but deps
-    with features or other options use section format:
+      with features or other options use section format:
 
-        ```toml
-        [workspace.dependencies.uuid]
-        version = "1"
-        features = ["v4", "serde"]
-        ```
+```toml
+[workspace.dependencies.uuid]
+version = "1"
+features = ["v4", "serde"]
+```

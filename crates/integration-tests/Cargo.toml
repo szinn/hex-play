@@ -1,0 +1,26 @@
+[package]
+name = "hex-play-integration-tests"
+description = "Integration tests for experimentation"
+publish = false
+autotests = false
+
+version = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+[[test]]
+name = "postgres"
+path = "main.rs"
+
+[dev-dependencies]
+hex-play-core = { workspace = true, features = ["test-support"] }
+hex-play-database.workspace = true
+sea-orm.workspace = true
+testcontainers.workspace = true
+testcontainers-modules.workspace = true
+tokio.workspace = true
+
+[lints]
+workspace = true

@@ -10,78 +10,87 @@ default:
 
 [doc('Install tooling for contributing to this project')]
 install-tools:
-  mise install
-  rustup toolchain add nightly
-  rustup target add wasm32-unknown-unknown
+    mise install
+    rustup toolchain add nightly
+    rustup target add wasm32-unknown-unknown
 
 [doc('Format code and documentation')]
 fmt:
-  cargo +nightly fmt --all
-  prettier --config .config/prettierrc --ignore-path .gitignore --ignore-path .config/prettierignore --log-level warn -w .
+    cargo +nightly fmt --all
+    prettier --config .config/prettierrc --ignore-path .gitignore --ignore-path .config/prettierignore --log-level warn -w .
 
 [doc('Update CHANGELOG.md')]
 changelog:
-  RUST_LOG= git-cliff --config .config/cliff.toml > CHANGELOG.md
-  just fmt
+    RUST_LOG= git-cliff --config .config/cliff.toml > CHANGELOG.md
+    just fmt
 
 [doc('Build all applications')]
 build:
-  cargo build --bin hex-play --all-features
+    cargo build --bin hex-play --all-features
 
 [doc('Run Clippy on codebase for linting')]
 clippy:
-  cargo +nightly clippy --workspace --all-targets --all-features
+    cargo +nightly clippy --workspace --all-targets --all-features
 
 [doc('Update rust crate dependencies')]
 deps:
-  cargo upgrade
+    cargo upgrade
 
 [doc('Run all tests using nextest')]
 test:
-  cargo nextest run --workspace --all-features
+    just component-tests
+    just integration-tests
 
 [doc('Run all tests using insta')]
 insta:
-  cargo insta test --workspace --test-runner nextest
+    cargo insta test --workspace --test-runner nextest
+
+[doc('Run all component tests using nextest')]
+component-tests:
+    cargo nextest run --workspace --all-features --exclude hex-play-integration-tests
+
+[doc('Run all integration tests using nextest')]
+integration-tests:
+    cargo nextest run --all-features --package hex-play-integration-tests
 
 [doc('Clean project workspace')]
 clean:
-  cargo clean
+    cargo clean
 
 [doc('Database Admin')]
 database:
-  PGUSER=$PGADMINUSER PGPASSWORD=$PGADMINPASSWORD PGDATABASE= psql-18
+    PGUSER=$PGADMINUSER PGPASSWORD=$PGADMINPASSWORD PGDATABASE= psql-18
 
 [doc('Create the database')]
 create-database:
-  #!/usr/bin/env bash
-  set -euo pipefail
+    #!/usr/bin/env bash
+    set -euo pipefail
 
-  SQL="""
-    DROP DATABASE IF EXISTS "$PGDATABASE";
-    DROP ROLE IF EXISTS "$PGUSER";
+    SQL="""
+      DROP DATABASE IF EXISTS "$PGDATABASE";
+      DROP ROLE IF EXISTS "$PGUSER";
 
-    CREATE ROLE "$PGUSER" WITH
-      LOGIN
-      NOSUPERUSER
-      INHERIT
-      NOCREATEDB
-      NOCREATEROLE
-      NOREPLICATION
-      PASSWORD '$PGPASSWORD';
+      CREATE ROLE "$PGUSER" WITH
+        LOGIN
+        NOSUPERUSER
+        INHERIT
+        NOCREATEDB
+        NOCREATEROLE
+        NOREPLICATION
+        PASSWORD '$PGPASSWORD';
 
-    CREATE DATABASE "$PGDATABASE"
-      WITH
-      OWNER = "$PGUSER"
-      ENCODING = 'UTF8'
-      LC_COLLATE = 'C'
-      LC_CTYPE = 'C'
-      TABLESPACE = pg_default
-      CONNECTION LIMIT = -1
-      IS_TEMPLATE = False;
+      CREATE DATABASE "$PGDATABASE"
+        WITH
+        OWNER = "$PGUSER"
+        ENCODING = 'UTF8'
+        LC_COLLATE = 'C'
+        LC_CTYPE = 'C'
+        TABLESPACE = pg_default
+        CONNECTION LIMIT = -1
+        IS_TEMPLATE = False;
 
-    GRANT TEMPORARY, CONNECT ON DATABASE "$PGDATABASE" TO PUBLIC;
+      GRANT TEMPORARY, CONNECT ON DATABASE "$PGDATABASE" TO PUBLIC;
 
-    GRANT ALL ON DATABASE "$PGDATABASE" TO "$PGUSER";
-  """
-  echo $SQL | PGUSER=$PGADMINUSER PGPASSWORD=$PGADMINPASSWORD PGDATABASE= psql-18 postgres
+      GRANT ALL ON DATABASE "$PGDATABASE" TO "$PGUSER";
+    """
+    echo $SQL | PGUSER=$PGADMINUSER PGPASSWORD=$PGADMINPASSWORD PGDATABASE= psql-18 postgres

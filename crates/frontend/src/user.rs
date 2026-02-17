@@ -58,8 +58,9 @@ async fn get_users() -> Result<ListUsersResponse, ServerFnError> {
     Ok(response)
 }
 
-/// We use the `auth::Session` extractor to get access to the current user session.
-/// This lets us modify the user session, log in/out, and access the current user.
+/// We use the `auth::Session` extractor to get access to the current user
+/// session. This lets us modify the user session, log in/out, and access the
+/// current user.
 #[post("/api/user/login", auth: axum::Extension<AuthSession>)]
 #[tracing::instrument(level = "trace", skip(auth))]
 pub async fn login() -> Result<()> {
@@ -87,8 +88,9 @@ pub async fn get_user_name() -> Result<String> {
     Ok(current_user.unwrap().username)
 }
 
-/// Get the current user's permissions, guarding the endpoint with the `Auth` validator.
-/// If this returns false, we use the `or_unauthorized` extension to return a 401 error.
+/// Get the current user's permissions, guarding the endpoint with the `Auth`
+/// validator. If this returns false, we use the `or_unauthorized` extension to
+/// return a 401 error.
 #[get("/api/user/permissions", auth: axum::Extension<AuthSession>)]
 #[tracing::instrument(level = "trace", skip(auth))]
 pub async fn get_permissions() -> Result<HashSet<String>> {
