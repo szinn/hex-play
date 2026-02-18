@@ -17,6 +17,9 @@ bacon-ls.log
 # Per user mise config
 mise.local.toml
 
+# Generated Tailwind CSS
+crates/frontend/assets/tailwind.css
+
 # Editor specific ignores
 .idea
 .vscode

@@ -1,5 +1,7 @@
 use dioxus::prelude::*;
 
+mod components;
+pub(crate) mod routes;
 pub(crate) mod user;
 
 #[cfg(feature = "web")]
@@ -236,42 +238,20 @@ pub mod server {
     }
 }
 
-use user::{get_permissions, get_user_name, login, logout};
+use components::AppLayout;
+use routes::{BooksPage, Home};
+
+#[derive(Routable, Clone, PartialEq)]
+#[rustfmt::skip]
+enum Route {
+    #[layout(AppLayout)]
+        #[route("/")]
+        Home {},
+        #[route("/books")]
+        BooksPage {},
+}
 
 #[component]
 fn HexPlayFrontend() -> Element {
-    let mut login = use_action(login);
-    let mut user_name = use_action(get_user_name);
-    let mut permissions = use_action(get_permissions);
-    let mut logout = use_action(logout);
-
-    let fetch_new = move |_| async move {
-        user_name.call().await;
-        permissions.call().await;
-    };
-
-    rsx! {
-        div {
-            button {
-                onclick: move |_| async move {
-                    login.call().await;
-                },
-                "Login Test User"
-            }
-            button {
-                onclick: move |_| async move {
-                    logout.call().await;
-                },
-                "Logout"
-            }
-            button {
-                onclick: fetch_new,
-                "Fetch User Info"
-            }
-
-            pre { "Logged in: {login.value():?}" }
-            pre { "User name: {user_name.value():?}" }
-            pre { "Permissions: {permissions.value():?}" }
-        }
-    }
+    rsx! { Router::<Route> {} }
 }

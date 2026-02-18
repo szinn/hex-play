@@ -16,6 +16,7 @@ just install-tools
 - Build: `just build`
 - Format code: `just fmt`
 - Update rust crate dependencies: `just deps`
+- Update tailwindcss: `just tailwindcss`
 - Run clippy: `just clippy`
 - Run all tests: `just test`
 - Run component tests: `just component-tests`

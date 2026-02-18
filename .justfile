@@ -36,6 +36,10 @@ clippy:
 deps:
     cargo upgrade
 
+[doc('Update tailwindcss')]
+tailwindcss:
+    npx tailwindcss@3 -i ./crates/frontend/assets/input.css -o ./crates/frontend/assets/tailwind.css
+
 [doc('Run all tests using nextest')]
 test:
     just component-tests
