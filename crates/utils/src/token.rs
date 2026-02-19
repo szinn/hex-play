@@ -125,7 +125,7 @@ impl TokenId for u128 {
 /// A typed, prefixed identifier for domain entities.
 ///
 /// Stores only the numeric ID internally. The string representation (e.g.
-/// `U_ABCD1234NRST0`) is computed on demand via [`Display`].
+/// `U_ABCD1234NRST0`) is computed on demand via [`fmt::Display`].
 ///
 /// The `MAX` const generic controls the upper bound for random ID generation
 /// via [`Token::generate`]. This allows token types to cap their range (e.g.

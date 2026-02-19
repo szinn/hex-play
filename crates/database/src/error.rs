@@ -2,7 +2,7 @@ use hex_play_core::RepositoryError;
 use sea_orm::{DbErr, RuntimeErr};
 
 /// PostgreSQL error codes.
-/// See: https://www.postgresql.org/docs/current/errcodes-appendix.html
+/// See: <https://www.postgresql.org/docs/current/errcodes-appendix.html>
 mod pg_error_codes {
     /// 25006: read_only_sql_transaction
     /// Raised when a write operation is attempted on a read-only transaction.
