@@ -8,11 +8,9 @@ use axum::{
 };
 use chrono::{DateTime, Utc};
 use hex_play_core::{
-    models::{
-        Age, Email, NewUser, PartialUserUpdate, User,
-        user::{UserId, UserToken},
-    },
-    services::CoreServices,
+    CoreServices,
+    types::{Age, Email},
+    user::{NewUser, PartialUserUpdate, User, UserId, UserToken},
 };
 use serde::{Deserialize, Serialize};
 
@@ -173,8 +171,8 @@ mod tests {
     };
     use hex_play_core::{
         Error, RepositoryError,
-        models::{User, user::UserToken},
         test_support::{MockUserService, create_arc_core_services_with_mock},
+        user::{User, UserToken},
     };
     use tower::ServiceExt;
 

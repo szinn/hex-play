@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "server")]
 use {
     crate::server::AuthSession,
-    hex_play_core::{models::User, services::CoreServices},
+    hex_play_core::{CoreServices, user::User},
     std::sync::Arc,
 };
 
@@ -95,7 +95,7 @@ pub async fn get_user_name() -> Result<String> {
 #[tracing::instrument(level = "trace", skip(auth))]
 pub async fn get_permissions() -> Result<HashSet<String>> {
     use axum_session_auth::{Auth, Rights};
-    use hex_play_core::models::user::UserId;
+    use hex_play_core::user::UserId;
 
     use crate::server::{AuthUser, BackendSessionPool};
 

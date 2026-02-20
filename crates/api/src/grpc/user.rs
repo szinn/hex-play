@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use hex_play_core::services::CoreServices;
+use hex_play_core::CoreServices;
 use tonic::{Request, Response, Status};
 
 use crate::grpc::{
@@ -64,16 +64,16 @@ impl UserService for GrpcUserService {
 /// Server-side handlers (business logic)
 pub(crate) mod handler {
     use hex_play_core::{
-        Error, RepositoryError,
-        models::{Age, Email, NewUser, PartialUserUpdate, user::UserToken},
-        services::CoreServices,
+        CoreServices, Error, RepositoryError,
+        types::{Age, Email},
+        user::{NewUser, PartialUserUpdate, UserToken},
     };
 
     use crate::grpc::user_proto::{
         CreateUserRequest, DeleteUserRequest, GetUserByTokenRequest, GetUserRequest, ListUsersRequest, ListUsersResponse, UpdateUserRequest, User as ProtoUser,
     };
 
-    fn to_proto(user: hex_play_core::models::User) -> ProtoUser {
+    fn to_proto(user: hex_play_core::user::User) -> ProtoUser {
         ProtoUser {
             id: user.id,
             token: user.token.to_string(),
@@ -160,8 +160,8 @@ pub(crate) mod handler {
 mod tests {
     use hex_play_core::{
         Error, RepositoryError,
-        models::{User, user::UserToken},
         test_support::{MockUserService, create_arc_core_services_with_mock, create_core_services_with_mock},
+        user::{User, UserToken},
     };
     use tonic::{Code, Request};
 
@@ -709,10 +709,8 @@ pub mod api {
     use chrono::DateTime;
     use hex_play_core::{
         Error,
-        models::{
-            Age, Email, User,
-            user::{UserId, UserToken},
-        },
+        types::{Age, Email},
+        user::{User, UserId, UserToken},
     };
 
     use crate::{

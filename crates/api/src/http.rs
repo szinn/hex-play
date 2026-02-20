@@ -6,7 +6,7 @@ use axum::{
     response::Html,
     routing::get,
 };
-use hex_play_core::{Error, services::CoreServices};
+use hex_play_core::{CoreServices, Error};
 use tokio_graceful_shutdown::{IntoSubsystem, SubsystemHandle};
 use tower::ServiceBuilder;
 use tower_http::{

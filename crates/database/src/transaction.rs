@@ -1,6 +1,6 @@
 use std::any::Any;
 
-use hex_play_core::{Error, repositories::Transaction};
+use hex_play_core::{Error, repository::Transaction};
 use sea_orm::DatabaseTransaction;
 
 use crate::error::handle_dberr;

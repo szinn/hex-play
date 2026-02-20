@@ -4,13 +4,15 @@
 use std::sync::{Arc, Mutex};
 
 use crate::{
-    Error,
-    models::{
-        NewUser, User,
-        session::{NewSession, Session},
-        user::{UserId, UserToken},
+    CoreServices, Error,
+    session::{
+        SessionService,
+        model::{NewSession, Session},
     },
-    services::{CoreServices, SessionService, UserService},
+    user::{
+        UserService,
+        model::{NewUser, User, UserId, UserToken},
+    },
 };
 
 /// A mock implementation of [`UserService`] for testing.

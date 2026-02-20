@@ -1,4 +1,4 @@
-use hex_play_core::models::user::{NewUser, PartialUserUpdate};
+use hex_play_core::user::{NewUser, PartialUserUpdate};
 
 use crate::postgres::setup;
 

@@ -1,8 +1,8 @@
 use chrono::Utc;
 use hex_play_core::{
     Error, RepositoryError,
-    models::session::{NewSession, Session},
-    repositories::{SessionRepository, Transaction},
+    repository::Transaction,
+    session::{NewSession, Session, SessionRepository},
 };
 use sea_orm::{ActiveValue::Set, ColumnTrait, EntityTrait, ModelTrait, PaginatorTrait, QueryFilter, QuerySelect, sea_query::OnConflict};
 
@@ -157,7 +157,7 @@ mod tests {
     use std::sync::Arc;
 
     use chrono::{Duration, Utc};
-    use hex_play_core::{models::session::NewSession, repositories::RepositoryService};
+    use hex_play_core::{repository::RepositoryService, session::NewSession};
     use sea_orm::Database;
 
     use crate::create_repository_service;

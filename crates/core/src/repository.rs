@@ -2,14 +2,7 @@ use std::{any::Any, future::Future, pin::Pin, sync::Arc};
 
 use derive_builder::Builder;
 
-pub mod session;
-
-pub mod user;
-
-pub use session::SessionRepository;
-pub use user::UserRepository;
-
-use crate::Error;
+use crate::{Error, session::SessionRepository, user::UserRepository};
 
 #[derive(Builder)]
 #[builder(pattern = "owned")]
@@ -65,7 +58,7 @@ pub trait Transaction: Any + Send + Sync {
 macro_rules! with_transaction {
     ($self:expr, $($repo:ident),+ , |$tx:ident| $body:expr) => {{
         $(let $repo = $self.repository_service.$repo().clone();)+
-        $crate::repositories::transaction(&**$self.repository_service.repository(), |$tx| Box::pin(async move { $body })).await
+        $crate::repository::transaction(&**$self.repository_service.repository(), |$tx| Box::pin(async move { $body })).await
     }};
 }
 
@@ -92,7 +85,7 @@ macro_rules! with_transaction {
 macro_rules! with_read_only_transaction {
     ($self:expr, $($repo:ident),+ , |$tx:ident| $body:expr) => {{
         $(let $repo = $self.repository_service.$repo().clone();)+
-        $crate::repositories::read_only_transaction(&**$self.repository_service.repository(), |$tx| Box::pin(async move { $body })).await
+        $crate::repository::read_only_transaction(&**$self.repository_service.repository(), |$tx| Box::pin(async move { $body })).await
     }};
 }
 

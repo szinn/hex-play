@@ -2,8 +2,10 @@ use chrono::{DateTime, Utc};
 use derive_builder::Builder;
 use hex_play_utils::{define_token_prefix, token::Token};
 
-use super::newtypes::{Age, Email};
-use crate::Error;
+use crate::{
+    Error,
+    types::{Age, Email},
+};
 
 define_token_prefix!(UserPrefix, "U_");
 pub type UserId = u64;

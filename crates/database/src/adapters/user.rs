@@ -1,11 +1,9 @@
 use chrono::Utc;
 use hex_play_core::{
     Error, RepositoryError,
-    models::{
-        Age, Email, NewUser, User,
-        user::{UserId, UserToken},
-    },
-    repositories::{Transaction, UserRepository},
+    repository::Transaction,
+    types::{Age, Email},
+    user::{NewUser, User, UserId, UserRepository, UserToken},
 };
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, ModelTrait, QueryFilter, QueryOrder, QuerySelect};
 
@@ -183,8 +181,9 @@ mod tests {
 
     use hex_play_core::{
         Error, RepositoryError,
-        models::{Email, NewUser, User, user::UserToken},
-        repositories::RepositoryService,
+        repository::RepositoryService,
+        types::Email,
+        user::{NewUser, User, UserToken},
     };
     use sea_orm::Database;
 

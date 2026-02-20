@@ -43,11 +43,50 @@ crates/
 ├── api/                # Adapter: GRPC/HTTP interface via Axum, calls into core ports
 ├── frontend/           # Adapter: User interface, calls into core ports
 ├── cli/                # Application entry point, wires adapters to ports
-└── integration-tests/  # Intergration tests
+└── integration-tests/  # Integration tests
 ```
 
 Only `crates/cli` is a direct workspace member. The other crates are pulled in transitively
 as path dependencies.
+
+### Core Crate Organization
+
+The core crate uses **domain-based modules** — each domain concept groups its model,
+repository trait (port), and service together:
+
+```
+crates/core/src/
+├── lib.rs              # CoreServices composition root, create_services()
+├── error.rs            # Error, ErrorKind, RepositoryError
+├── types.rs            # Shared newtypes (Email, Age) used across domains
+├── repository.rs       # Shared infrastructure: Repository, Transaction traits,
+│                       #   RepositoryService, and transaction macros
+├── test_support.rs     # Mock implementations (behind "test-support" feature)
+├── user/
+│   ├── mod.rs          # Re-exports: User, UserService, UserRepository, etc.
+│   ├── model.rs        # User, NewUser, PartialUserUpdate, UserId, UserToken
+│   ├── repository.rs   # UserRepository trait (port)
+│   └── service.rs      # UserService trait + UserServiceImpl
+└── session/
+    ├── mod.rs          # Re-exports: Session, SessionService, SessionRepository, etc.
+    ├── model.rs        # Session, NewSession, SessionBuilder
+    ├── repository.rs   # SessionRepository trait (port)
+    └── service.rs      # SessionService trait + SessionServiceImpl
+```
+
+**Adding a new domain:** Create a new directory (e.g. `order/`) with `mod.rs`, `model.rs`,
+`repository.rs`, and `service.rs`. Add re-exports in `mod.rs` and register the module in
+`lib.rs`. Wire the new service into `CoreServices`.
+
+**Import conventions:** Use flat re-exports from domain modules, not submodule paths:
+- `use crate::user::{User, UserService, UserId}` (not `user::model::User`)
+- `use crate::session::{Session, NewSession}` (not `session::model::Session`)
+- `use crate::repository::{Repository, Transaction}` for shared infrastructure
+- `use crate::types::{Email, Age}` for shared newtypes
+
+**Cross-domain references:** Domain modules can import types from sibling domains
+(e.g. `use crate::user::UserId` in an order model for foreign-key relationships).
+Keep references one-directional when possible.
 
 ## Frontend
 

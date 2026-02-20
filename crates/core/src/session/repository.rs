@@ -1,7 +1,7 @@
 use crate::{
     Error,
-    models::session::{NewSession, Session},
-    repositories::Transaction,
+    repository::Transaction,
+    session::{NewSession, Session},
 };
 
 #[async_trait::async_trait]

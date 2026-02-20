@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 use hex_play_core::{
     Error,
-    repositories::{Repository, RepositoryService, RepositoryServiceBuilder, SessionRepository, UserRepository},
+    repository::{Repository, RepositoryService, RepositoryServiceBuilder},
+    session::SessionRepository,
+    user::UserRepository,
 };
 use sea_orm::DatabaseConnection;
 

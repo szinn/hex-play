@@ -2,11 +2,8 @@ use std::sync::Arc;
 
 use crate::{
     Error, RepositoryError,
-    models::{
-        NewUser, User,
-        user::{UserId, UserToken},
-    },
-    repositories::RepositoryService,
+    repository::RepositoryService,
+    user::{NewUser, User, UserId, UserToken},
     with_read_only_transaction, with_transaction,
 };
 
@@ -80,12 +77,16 @@ mod tests {
     use super::{UserService, UserServiceImpl};
     use crate::{
         Error, RepositoryError,
-        models::{
-            Email, NewUser, User,
-            session::{NewSession, Session},
-            user::{UserId, UserToken},
+        repository::{Repository, RepositoryServiceBuilder, Transaction},
+        session::{
+            model::{NewSession, Session},
+            repository::SessionRepository,
         },
-        repositories::{Repository, RepositoryServiceBuilder, SessionRepository, Transaction, UserRepository},
+        types::Email,
+        user::{
+            model::{NewUser, User, UserId, UserToken},
+            repository::UserRepository,
+        },
     };
 
     // ===================

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use hex_play_core::services::CoreServices;
+use hex_play_core::CoreServices;
 use hex_play_database::create_repository_service;
 use sea_orm::Database;
 use testcontainers::{ImageExt as _, runners::AsyncRunner as _};

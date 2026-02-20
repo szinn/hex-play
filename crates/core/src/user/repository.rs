@@ -1,10 +1,8 @@
 use crate::{
     Error,
-    models::{
-        Email, NewUser, User,
-        user::{UserId, UserToken},
-    },
-    repositories::Transaction,
+    repository::Transaction,
+    types::Email,
+    user::{NewUser, User, UserId, UserToken},
 };
 
 #[async_trait::async_trait]

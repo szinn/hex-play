@@ -1,6 +1,6 @@
 use hex_play_core::{
     Error,
-    repositories::{Repository, Transaction},
+    repository::{Repository, Transaction},
 };
 use sea_orm::{AccessMode, DatabaseConnection, TransactionTrait};
 

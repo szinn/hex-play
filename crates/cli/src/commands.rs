@@ -1,6 +1,6 @@
 mod server;
 
-use hex_play_core::models::user::UserId;
+use hex_play_core::user::UserId;
 pub use server::*;
 
 #[derive(Debug, clap::Parser)]

@@ -31,8 +31,9 @@ pub mod server {
     use axum_session_auth::{AuthConfig, AuthSessionLayer, Authentication, HasPermission};
     use chrono::DateTime;
     use hex_play_core::{
-        models::{session::NewSession, user::UserId},
-        services::{CoreServices, SessionService},
+        CoreServices,
+        session::{NewSession, SessionService},
+        user::UserId,
     };
     use serde::{Deserialize, Serialize};
     use tower::ServiceBuilder;

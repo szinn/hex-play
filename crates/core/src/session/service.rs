@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use crate::{
     Error,
-    models::session::{NewSession, Session},
-    repositories::RepositoryService,
+    repository::RepositoryService,
+    session::{NewSession, Session},
     with_transaction,
 };
 
@@ -74,8 +74,16 @@ mod tests {
     use super::{SessionService, SessionServiceImpl};
     use crate::{
         Error,
-        models::session::{NewSession, Session, SessionBuilder},
-        repositories::{Repository, RepositoryServiceBuilder, SessionRepository, Transaction, UserRepository},
+        repository::{Repository, RepositoryServiceBuilder, Transaction},
+        session::{
+            model::{NewSession, Session, SessionBuilder},
+            repository::SessionRepository,
+        },
+        types::Email,
+        user::{
+            model::{NewUser, User, UserId, UserToken},
+            repository::UserRepository,
+        },
     };
 
     // ===================
@@ -125,30 +133,25 @@ mod tests {
 
     #[async_trait::async_trait]
     impl UserRepository for MockUserRepository {
-        async fn add_user(&self, _tx: &dyn Transaction, _user: crate::models::NewUser) -> Result<crate::models::User, Error> {
+        async fn add_user(&self, _tx: &dyn Transaction, _user: NewUser) -> Result<User, Error> {
             unimplemented!()
         }
-        async fn update_user(&self, _tx: &dyn Transaction, _user: crate::models::User) -> Result<crate::models::User, Error> {
+        async fn update_user(&self, _tx: &dyn Transaction, _user: User) -> Result<User, Error> {
             unimplemented!()
         }
-        async fn delete_user(&self, _tx: &dyn Transaction, _user: crate::models::User) -> Result<crate::models::User, Error> {
+        async fn delete_user(&self, _tx: &dyn Transaction, _user: User) -> Result<User, Error> {
             unimplemented!()
         }
-        async fn list_users(
-            &self,
-            _tx: &dyn Transaction,
-            _start_id: Option<crate::models::user::UserId>,
-            _page_size: Option<u64>,
-        ) -> Result<Vec<crate::models::User>, Error> {
+        async fn list_users(&self, _tx: &dyn Transaction, _start_id: Option<UserId>, _page_size: Option<u64>) -> Result<Vec<User>, Error> {
             unimplemented!()
         }
-        async fn find_by_id(&self, _tx: &dyn Transaction, _id: crate::models::user::UserId) -> Result<Option<crate::models::User>, Error> {
+        async fn find_by_id(&self, _tx: &dyn Transaction, _id: UserId) -> Result<Option<User>, Error> {
             unimplemented!()
         }
-        async fn find_by_email(&self, _tx: &dyn Transaction, _email: &crate::models::Email) -> Result<Option<crate::models::User>, Error> {
+        async fn find_by_email(&self, _tx: &dyn Transaction, _email: &Email) -> Result<Option<User>, Error> {
             unimplemented!()
         }
-        async fn find_by_token(&self, _tx: &dyn Transaction, _token: crate::models::user::UserToken) -> Result<Option<crate::models::User>, Error> {
+        async fn find_by_token(&self, _tx: &dyn Transaction, _token: UserToken) -> Result<Option<User>, Error> {
             unimplemented!()
         }
     }
