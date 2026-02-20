@@ -20,7 +20,7 @@ hex-play-utils = { path = "crates/utils" }
 
 testcontainers = "0.26.0"
 
-anyhow = "1.0.101"
+anyhow = "1.0.102"
 async-trait = "0.1.89"
 axum = "0.8.8"
 config = "0.15.19"
