@@ -11,16 +11,28 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [[test]]
-name = "postgres"
+name = "integration"
 path = "main.rs"
 
-[dev-dependencies]
+[features]
+default = ["postgres"]
+postgres = ["dep:testcontainers", "dep:testcontainers-modules"]
+sqlite = []
+mysql = ["dep:testcontainers", "dep:testcontainers-modules"]
+
+[dependencies]
 hex-play-core = { workspace = true, features = ["test-support"] }
 hex-play-database.workspace = true
 sea-orm.workspace = true
-testcontainers.workspace = true
-testcontainers-modules.workspace = true
 tokio.workspace = true
+
+[dependencies.testcontainers]
+workspace = true
+optional = true
+
+[dependencies.testcontainers-modules]
+workspace = true
+optional = true
 
 [lints]
 workspace = true

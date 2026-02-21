@@ -78,6 +78,7 @@ features = [
     "runtime-tokio-rustls",
     "sqlx-postgres",
     "sqlx-sqlite",
+    "sqlx-mysql",
     "with-chrono",
     "with-json",
     "with-uuid",
@@ -119,7 +120,7 @@ features = ["log"]
 
 [workspace.dependencies.testcontainers-modules]
 version = "0.14"
-features = ["postgres"]
+features = ["postgres", "mysql"]
 
 [workspace.dependencies.tracing-subscriber]
 version = "0.3.22"

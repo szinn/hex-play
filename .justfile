@@ -40,6 +40,12 @@ deps:
 tailwindcss:
     npx tailwindcss@3 -i ./crates/frontend/assets/input.css -o ./crates/frontend/assets/tailwind.css
 
+[doc('Run quick tests using nextest')]
+quick-test:
+    just component-tests
+    just postgres-integration-tests
+    just sqlite-integration-tests
+
 [doc('Run all tests using nextest')]
 test:
     just component-tests
@@ -55,7 +61,21 @@ component-tests:
 
 [doc('Run all integration tests using nextest')]
 integration-tests:
-    cargo nextest run --all-features --package hex-play-integration-tests
+    just postgres-integration-tests
+    just sqlite-integration-tests
+    just mysql-integration-tests
+
+[doc('Run Postgres integration tests')]
+postgres-integration-tests:
+    cargo nextest run --no-default-features --features postgres --package hex-play-integration-tests
+
+[doc('Run SQLite integration tests')]
+sqlite-integration-tests:
+    cargo nextest run --no-default-features --features sqlite --package hex-play-integration-tests
+
+[doc('Run MySQL integration tests')]
+mysql-integration-tests:
+    cargo nextest run --no-default-features --features mysql --package hex-play-integration-tests
 
 [doc('Clean project workspace')]
 clean:

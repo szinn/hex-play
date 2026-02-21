@@ -25,7 +25,10 @@ impl Repository for RepositoryImpl {
     }
 
     async fn begin_read_only(&self) -> Result<Box<dyn Transaction>, Error> {
-        let transaction = self.database.begin_with_config(None, Some(AccessMode::ReadOnly)).await.map_err(handle_dberr)?;
+        let transaction = match self.database.get_database_backend() {
+            sea_orm::DatabaseBackend::Sqlite => self.database.begin().await.map_err(handle_dberr)?,
+            _ => self.database.begin_with_config(None, Some(AccessMode::ReadOnly)).await.map_err(handle_dberr)?,
+        };
         Ok(Box::new(TransactionImpl::new(transaction)))
     }
 

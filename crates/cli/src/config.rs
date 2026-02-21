@@ -7,7 +7,6 @@ use crate::error::Error;
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub database: DatabaseConfig,
-    #[serde(default)]
     pub frontend: FrontendConfig,
 }
 

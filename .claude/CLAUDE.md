@@ -18,9 +18,13 @@ just install-tools
 - Update rust crate dependencies: `just deps`
 - Update tailwindcss: `just tailwindcss`
 - Run clippy: `just clippy`
+- Run quick tests (component + postgres): `just quick-test`
 - Run all tests: `just test`
 - Run component tests: `just component-tests`
-- Run integration tests: `just integration-tests`
+- Run all integration tests: `just integration-tests`
+- Run Postgres integration tests: `just postgres-integration-tests`
+- Run SQLite integration tests: `just sqlite-integration-tests`
+- Run MySQL integration tests: `just mysql-integration-tests`
 - Run insta tests: `just insta`
 - Clean workspace: `just clean`
 - Create changelog: `just changelog`
@@ -106,15 +110,17 @@ Secrets should be encrypted with `sops` and never committed.
 
 ## Workflows
 
-**While Developing:**
+**After completing work:**
 
-- use component tests to make sure everything passes: `just component-tests`
+- Use component tests to make sure everything passes: `just component-tests`
 
 **Before committing:**
 
 - Run tests to make sure everything passes: `just test`
 - Run clippy for linting: `just clippy`
 - Format code: `just fmt`
+- Update the working copy description with `jj desc -m "..."` — do not ask about committing
+- The description should include a conventional commit title and a body summarizing what was done
 
 ## Testing
 
@@ -140,7 +146,7 @@ Secrets should be encrypted with `sops` and never committed.
   - All crate dependencies must be defined in the root `Cargo.toml` under `[workspace.dependencies]`
   - Individual crates reference them with `crate-name.workspace = true`
   - In root `Cargo.toml`: version-only deps use inline format (`anyhow = "1.0.100"`), but deps
-    with features or other options use section format:
+      with features or other options use section format:
 
 ```toml
 [workspace.dependencies.uuid]
