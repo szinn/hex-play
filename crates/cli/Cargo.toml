@@ -61,3 +61,4 @@ tracing-log = { workspace = true, optional = true }
 tracing-subscriber = { workspace = true, optional = true }
 
 [dev-dependencies]
+insta.workspace = true

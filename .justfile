@@ -47,7 +47,7 @@ test:
 
 [doc('Run all tests using insta')]
 insta:
-    cargo insta test --workspace --test-runner nextest
+    cargo insta test --workspace --test-runner nextest --all-features
 
 [doc('Run all component tests using nextest')]
 component-tests:
