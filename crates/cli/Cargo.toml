@@ -30,7 +30,6 @@ server = [
     "dep:config",
     "dep:dioxus",
     "dep:log",
-    "dep:sea-orm",
     "dep:serde",
     "dep:thiserror",
     "dep:tokio",
@@ -53,7 +52,6 @@ clap = { workspace = true, optional = true }
 config = { workspace = true, optional = true }
 dioxus = { workspace = true, optional = true }
 log = { workspace = true, optional = true }
-sea-orm = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 thiserror = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
@@ -63,4 +61,3 @@ tracing-log = { workspace = true, optional = true }
 tracing-subscriber = { workspace = true, optional = true }
 
 [dev-dependencies]
-insta.workspace = true

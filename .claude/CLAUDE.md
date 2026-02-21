@@ -79,6 +79,7 @@ crates/core/src/
 `lib.rs`. Wire the new service into `CoreServices`.
 
 **Import conventions:** Use flat re-exports from domain modules, not submodule paths:
+
 - `use crate::user::{User, UserService, UserId}` (not `user::model::User`)
 - `use crate::session::{Session, NewSession}` (not `session::model::Session`)
 - `use crate::repository::{Repository, Transaction}` for shared infrastructure

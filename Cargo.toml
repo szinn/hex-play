@@ -99,10 +99,6 @@ features = [
 version = "1.0.228"
 features = ["derive"]
 
-[workspace.dependencies.sqlx]
-version = "0.8.6"
-default-features = false
-
 [workspace.dependencies.tokio]
 version = "1.49.0"
 default-features = false

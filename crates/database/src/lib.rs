@@ -6,7 +6,8 @@ use hex_play_core::{
     session::SessionRepository,
     user::UserRepository,
 };
-use sea_orm::DatabaseConnection;
+use sea_orm::{ConnectOptions, Database, DatabaseConnection};
+use serde::Deserialize;
 
 use crate::adapters::{session::SessionRepositoryAdapter, user::UserRepositoryAdapter};
 
@@ -21,6 +22,23 @@ mod transaction;
 
 use repository::*;
 use transaction::*;
+
+#[derive(Debug, Deserialize)]
+pub struct DatabaseConfig {
+    /// (required) Fully qualified URL for accessing Postgres server.
+    /// e.g. postgres://user:password@host/database
+    pub database_url: String,
+}
+
+pub async fn open_database(config: &DatabaseConfig) -> Result<DatabaseConnection, Error> {
+    let mut opt = ConnectOptions::new(&config.database_url);
+    opt.max_connections(9)
+        .min_connections(5)
+        .sqlx_logging(true)
+        .sqlx_logging_level(tracing::log::LevelFilter::Info);
+
+    Ok(Database::connect(opt).await.map_err(handle_dberr)?)
+}
 
 #[tracing::instrument(level = "trace", skip(database))]
 pub async fn create_repository_service(database: DatabaseConnection) -> Result<Arc<RepositoryService>, Error> {
