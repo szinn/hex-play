@@ -119,7 +119,7 @@ version = "0.1.44"
 features = ["log"]
 
 [workspace.dependencies.testcontainers-modules]
-version = "0.14"
+version = "0.15.0"
 features = ["postgres", "mysql"]
 
 [workspace.dependencies.tracing-subscriber]
