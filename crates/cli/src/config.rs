@@ -1,4 +1,5 @@
 use hex_play_database::DatabaseConfig;
+use hex_play_frontend::FrontendConfig;
 use serde::Deserialize;
 
 use crate::error::Error;
@@ -6,6 +7,8 @@ use crate::error::Error;
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub database: DatabaseConfig,
+    #[serde(default)]
+    pub frontend: FrontendConfig,
 }
 
 impl Config {

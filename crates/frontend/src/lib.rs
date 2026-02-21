@@ -13,6 +13,35 @@ pub mod web {
     }
 }
 
+fn default_listen_ip() -> String {
+    "0.0.0.0".to_string()
+}
+fn default_listen_port() -> u16 {
+    8080
+}
+
+#[derive(Debug, Deserialize)]
+pub struct FrontendConfig {
+    /// (required) IP address where the server should listen.
+    /// e.g. 0.0.0.0
+    #[serde(default = "default_listen_ip")]
+    pub listen_ip: String,
+
+    /// (required) Port the server should listen on.
+    /// e.g. 8080
+    #[serde(default = "default_listen_port")]
+    pub listen_port: u16,
+}
+
+impl Default for FrontendConfig {
+    fn default() -> Self {
+        Self {
+            listen_ip: default_listen_ip(),
+            listen_port: default_listen_port(),
+        }
+    }
+}
+
 #[cfg(feature = "server")]
 mod error;
 
@@ -42,7 +71,7 @@ pub mod server {
         trace::TraceLayer,
     };
 
-    use crate::HexPlayFrontend;
+    use crate::{FrontendConfig, HexPlayFrontend};
 
     #[derive(Clone)]
     pub(crate) struct BackendSessionPool {
@@ -198,9 +227,17 @@ pub mod server {
 
     const REQUEST_ID_HEADER: &str = "x-request-id";
 
-    pub fn launch_server_frontend(core_services: Arc<CoreServices>) {
+    pub fn launch_server_frontend(config: &FrontendConfig, core_services: Arc<CoreServices>) {
+        let listen_ip = config.listen_ip.clone();
+        let listen_port = config.listen_port;
         std::thread::spawn(move || {
-            tracing::info!("Frontend started");
+            // SAFETY: Called at the start of a dedicated thread before any other work,
+            // so no other threads are reading these env vars concurrently.
+            unsafe {
+                std::env::set_var("IP", &listen_ip);
+                std::env::set_var("PORT", listen_port.to_string());
+            }
+            tracing::info!("Frontend started on {listen_ip}:{listen_port}");
             dioxus::serve(|| {
                 let core_services = core_services.clone();
                 let backend_pool = BackendSessionPool {
@@ -241,6 +278,7 @@ pub mod server {
 
 use components::AppLayout;
 use routes::{BooksPage, Home};
+use serde::Deserialize;
 
 #[derive(Routable, Clone, PartialEq)]
 #[rustfmt::skip]

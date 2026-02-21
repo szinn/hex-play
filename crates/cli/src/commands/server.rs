@@ -22,7 +22,7 @@ pub async fn run_server_command(config: &Config) -> anyhow::Result<()> {
         let services = create_services(repository_service.clone()).context("Couldn't create core services")?;
         let api_subsystem = create_api_subsystem(services.clone());
 
-        launch_server_frontend(services.clone());
+        launch_server_frontend(&config.frontend, services.clone());
 
         Toplevel::new(async |s: &mut SubsystemHandle| {
             s.start(SubsystemBuilder::new("Api", api_subsystem.into_subsystem()));
