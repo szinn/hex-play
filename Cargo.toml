@@ -55,7 +55,7 @@ version = "4.5.60"
 features = ["cargo", "derive", "env"]
 
 [workspace.dependencies.dioxus]
-version = "0.7.3"
+version = "0.7.4"
 features = ["fullstack", "router"]
 
 [workspace.dependencies.hyper]
