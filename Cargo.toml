@@ -39,7 +39,7 @@ tower = "0.5.3"
 tracing-log = "0.2.0"
 
 [workspace.dependencies.axum_session]
-version = "0.18.0"
+version = "0.19.0"
 default-features = false
 
 [workspace.dependencies.axum_session_auth]
